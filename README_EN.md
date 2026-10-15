@@ -15,8 +15,10 @@ For the full design contract, see [docs/design.md](docs/design.md).
 - **Three layers of invocation**: raw API calls, system subcommands, and shortcuts (planned)
 - **Multi-context support**: manage credentials for multiple BlueKing deployments
 - **Environment diagnostics**: use `bk-cli doctor` to check contexts, credentials, URL rendering, and gateway connectivity
+- **Unified observability**: `bk-cli monitor` offers read-only monitoring/log queries, permission guidance, named `--profile` configurations and `status` checks. V2 routes business components and named bindings to independent data sources. SREs can deliver [Profiles + Skills](skills/bk-cli-monitor/references/profiles.md); developers keep their own credentials
 - **Automation-friendly output**: JSON envelopes with an `ok` field, machine-readable errors, and predictable exit codes
 - **Flexible request body input**: `--body` supports inline JSON, `@file` file reads, and stdin
+- **Explicit query time**: monitor accepts relative windows, readable/RFC3339 dates, calendar keywords and Unix timestamps for top-level time fields, with schema-aware seconds/milliseconds conversion. See [Time Inputs](skills/bk-cli-monitor/references/time-inputs.md)
 - **Rich system commands**: built-in BlueKing system subcommands, with raw `api` calls kept as a fallback
 - **Embedded agent skills**: inspect version-matched usage guidance with `bk-cli skills list` and `bk-cli skills read <name>`; use `skills read --raw` for raw Markdown
 - **Encrypted credential storage**: AES-256-GCM encryption per context

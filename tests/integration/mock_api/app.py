@@ -206,10 +206,114 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         "/<gateway>/<stage>/<path:tail>",
         methods=["GET", "POST", "PUT", "PATCH", "DELETE"],
     )
+    @app.route("/alternate/<gateway>/<stage>/<path:tail>", methods=["GET", "POST"])
     def generic_gateway(gateway: str, stage: str, tail: str):
         negative = maybe_negative_response(gateway, stage, tail)
         if negative is not None:
             return negative
+
+        if gateway == "bk-monitor" and tail == "mcp/lookup_tool/":
+            payload = request_body() or {}
+            return jsonify(
+                {
+                    "result": True,
+                    "data": {
+                        "tools": [
+                            {
+                                "name": payload.get("tool_name") or "list_alerts",
+                                "risk": "query",
+                                "requires_confirmation": False,
+                                "permission_state": "missing",
+                            }
+                        ]
+                    },
+                }
+            )
+
+        if gateway == "bk-monitor" and tail == "mcp/lookup_tool_schema/":
+            return jsonify(
+                {
+                    "result": True,
+                    "data": {
+                        "catalog_version": "integration",
+                        "permission": {
+                            "mode": "mcp_then_native",
+                            "fallback_permission": {
+                                "resource_type": "indices" if (request_body() or {}).get("tool_name") == "get_index_set_fields" else "space",
+                                "resource_arg": "index_set_id" if (request_body() or {}).get("tool_name") == "get_index_set_fields" else "bk_biz_id",
+                            },
+                        },
+                    },
+                }
+            )
+
+        if gateway == "bk-monitor" and tail == "mcp/lookup_permissions/":
+            payload = request_body() or {}
+            tool_name = payload.get("tool_name")
+            # Two synthetic V2 evidence sources for MONITOR-009.
+            if payload.get("bk_biz_id") in ("10007", "10008"):
+                return jsonify({"result": True, "data": {"authorized": True, "scopes": [{"tool_name": tool_name, "state": "granted"}]}})
+            # Synthetic scope mismatch for MONITOR-007; never a real business ID.
+            if payload.get("bk_biz_id") == "900007":
+                return jsonify({"result": True, "data": {"authorized": True, "scopes": [{"tool_name": "different_tool", "state": "granted"}]}})
+            # Fixed synthetic profile resources; list_alerts remains denied for MONITOR-004.
+            if payload.get("bk_biz_id") == "100100" and (
+                tool_name == "list_time_series_metrics"
+                or (tool_name == "get_index_set_fields" and (payload.get("resource_context") or {}).get("index_set_id") == 101003)
+            ):
+                return jsonify({"result": True, "data": {"authorized": True, "scopes": [{"tool_name": tool_name, "state": "granted"}]}})
+            return jsonify(
+                {
+                    "result": True,
+                    "data": {
+                        "authorized": False,
+                        "scopes": [
+                            {
+                                "tool_name": tool_name,
+                                "state": "missing",
+                                "authorized": False,
+                                "legacy_permission": {
+                                    "system_id": "bk_monitorv3",
+                                    "action_id": "using_alarm_mcp",
+                                    "resource_type": "space",
+                                    "apply_url": "https://iam.example.com/apply/mcp",
+                                },
+                                "fallback_permission": {
+                                    "system_id": "bk_monitorv3",
+                                    "action_id": "view_event_v2",
+                                    "resource_type": "space",
+                                    "apply_url": "https://iam.example.com/apply/native",
+                                },
+                            }
+                        ],
+                    },
+                }
+            )
+
+        if gateway == "bk-monitor" and tail == "mcp/execute_tool/":
+            payload = request_body() or {}
+            tool_name = payload.get("tool_name")
+            if tool_name in ("find_relations", "find_relations_range"):
+                args = payload.get("tool_args") or {}
+                # Synthetic batch item failure for MONITOR-008, not a real business.
+                code = 400 if args.get("bk_biz_id") == "900008" else 200
+                items = [{"code": code, "target_list": []} for _ in args.get("query_list", [])]
+                return jsonify({"result": True, "data": {"status": "success", "tool_name": tool_name, "data": {"data": items}}})
+            return jsonify(
+                {
+                    "result": True,
+                    "data": {
+                        "status": "success",
+                        "tool_name": tool_name,
+                        "data": {
+                            "path": f"/{gateway}/{stage}/{tail}",
+                            "request_path": request.path,
+                            "tool_args": payload.get("tool_args"),
+                        },
+                        "meta": {"truncated": False},
+                    },
+                }
+            )
 
         if gateway == "bk-cmdb" and tail == "api/v3/open/hosts/modules/read":
             return jsonify(

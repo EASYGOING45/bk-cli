@@ -61,6 +61,7 @@ tests/integration/cases/system/<system>/
 Examples:
 
 - `tests/integration/cases/system/devops/`
+- `tests/integration/cases/system/monitor/` — profile cases use synthetic `fixtures/monitor-profiles.yaml`; never real credentials or live IDs
 - `tests/integration/cases/system/apigateway/`
 
 If you add a new public system command to `cmd/system/<system>/`, add
@@ -83,6 +84,7 @@ Recommended filename pattern:
 Examples:
 
 - `SYSGO-001-devops-start-build.yaml`
+- `MONITOR-001-monitor-log-search-logs-scene.yaml`
 - `SYSYAML-001-apigateway-list-gateways.yaml`
 
 ## How To Add Coverage For A New System

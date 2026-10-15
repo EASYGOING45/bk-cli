@@ -156,6 +156,7 @@ These are the current registered systems in `cmd/system/register.go`:
 | `gse` | `cmd/system/gse` | Go-implemented |
 | `devops` | `cmd/system/devops` | subsystem-based mixed YAML + Go |
 | `nodeman` | `cmd/system/nodeman` | Go-implemented |
+| `monitor` | `cmd/system/monitor` | reviewed read-only catalog; V1 single-source / V2 component-binding-source Profiles; context/auth remain shared |
 
 ## Command registration model
 

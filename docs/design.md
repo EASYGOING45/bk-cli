@@ -492,6 +492,20 @@ timeout: 60s
 
 如果本地还没有任何 context，命令应报错并提示先执行 `bk-cli context init --bk_api_url_tmpl=...`。对于显式指定但不存在的 context，CLI 也应返回错误，而不是静默降级。
 
+### 8.5 monitor 的具名观测 Profile
+
+`monitor --profile` 是系统局部的资源默认值机制，不扩展公共 context 的配置字段，也不另存凭据。Profile 引用既有 context 名称，通过共享 runtime 选择该 context，不修改 active context；显式 context 或业务冲突会失败。
+
+V1 保留单来源格式。V2 用 sources（context + 业务）、components（业务组件）、bindings（module + 资源参数 + 精确工具预设）描述异构来源；有歧义时必须显式选择，不做隐藏回退。公共资源字段只补给声明它的工具，策略 ID/查询条件等按精确工具配置，避免同名参数误用；不支持脚本、插值、远程 include 或固定时间批次。
+
+格式与使用契约见 [Profile 使用与交付](../skills/bk-cli-monitor/references/profiles.md)。仅显式使用 Profile 时，monitor 输出额外的顶层 `profile` 来源信息；共享 `output.Envelope` 和原有 `data` 结构保持不变。`status` 与 `profile check` 沿用诊断命令约定：stdout 保留检查报告，存在失败项时非零退出，跳过项不视作已验证。
+
+### 8.6 monitor 时间输入
+
+只规范工具目录标明 time_unit 的顶层时间字段。日期/RFC3339/日历关键词按明确时区解析为绝对时刻，默认 Asia/Shanghai；Unix 整数使用原生单位或显式 s/ms 后缀，不根据位数推断。输出按工具的 string/integer 和 s/ms 契约生成。
+
+since 与命名参数/body 时间边界互斥；绝对区间必须正向。单次取一个运行时时钟；非整单位、夏令时歧义和不存在时刻快速失败。query_list、--from 定位字段不递归解释；不把业务查询时间固定进 Profile。此转换仅属于 monitor，不改变公共 api 的原始 body 契约。
+
 ## 9. 请求构造与认证头
 
 ### 9.1 URL 构造
