@@ -237,7 +237,7 @@ var _ = Describe("requestexec", func() {
 		})
 	})
 
-	Describe("ensureRuntimeCredential", func() {
+	Describe("Runtime.EnsureCredential", func() {
 		It("does nothing when the credential is already present", func() {
 			preloaded := &credential.Credential{
 				Type:        credential.TypeAccessToken,
@@ -248,13 +248,13 @@ var _ = Describe("requestexec", func() {
 				Credential:  preloaded,
 			}
 
-			err := ensureRuntimeCredential(runtime)
+			err := runtime.EnsureCredential()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(runtime.Credential).To(BeIdenticalTo(preloaded))
 		})
 
 		It("requires a context name when loading lazily", func() {
-			err := ensureRuntimeCredential(&Runtime{})
+			err := (&Runtime{}).EnsureCredential()
 
 			Expect(err).To(MatchError("runtime context name is required when credential is not preloaded"))
 		})
@@ -263,7 +263,7 @@ var _ = Describe("requestexec", func() {
 			writeRequestExecContext("default", "https://bkapi.example.com/api", true)
 			runtime := &Runtime{ContextName: "default"}
 
-			err := ensureRuntimeCredential(runtime)
+			err := runtime.EnsureCredential()
 			Expect(err).NotTo(HaveOccurred())
 			Expect(runtime.Credential).NotTo(BeNil())
 			Expect(runtime.Credential.AccessToken).To(Equal("token-123"))

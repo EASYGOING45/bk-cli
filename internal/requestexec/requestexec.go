@@ -119,7 +119,8 @@ func loadCredential(ctxName string) (*credential.Credential, error) {
 	return cred, nil
 }
 
-func ensureRuntimeCredential(runtime *Runtime) error {
+// EnsureCredential loads and caches credentials when a command or request needs them.
+func (runtime *Runtime) EnsureCredential() error {
 	if runtime.Credential != nil {
 		return nil
 	}
@@ -185,7 +186,7 @@ func executeRequest(runtime *Runtime, spec RequestSpec, timeoutErrorLabel string
 	// here the `bk-cli api` authConfig is nil; the `bk-cli action` authConfig is not nil
 	// would ensure the cred is loaded
 	if spec.AuthConfig == nil || spec.AuthConfig.RequiresAuth() {
-		if err := ensureRuntimeCredential(runtime); err != nil {
+		if err := runtime.EnsureCredential(); err != nil {
 			return nil, err
 		}
 	}
