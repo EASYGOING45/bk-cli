@@ -29,15 +29,6 @@ import (
 )
 
 func newLoginCmd() *cobra.Command {
-	var (
-		bkAppCode     string
-		bkAppSecret   string
-		bkToken       string
-		bkTicket      string
-		accessToken   string
-		personalToken string
-	)
-
 	cmd := &cobra.Command{
 		Use:   "login",
 		Short: "Store authentication credentials",
@@ -52,6 +43,25 @@ Four credential modes are supported:
   3. Access token:  --access_token
   4. Personal token: --personal_token (exclusive; sent as Bearer authentication)
 
+Environment fallbacks (read directly by the CLI):
+  --bk_app_code   -> BK_CLI_BK_APP_CODE
+  --bk_app_secret -> BK_CLI_BK_APP_SECRET
+  --bk_token      -> BK_CLI_BK_TOKEN
+  --bk_ticket     -> BK_CLI_BK_TICKET
+  --access_token  -> BK_CLI_ACCESS_TOKEN
+  --personal_token -> BK_CLI_PERSONAL_TOKEN
+
+Explicit credential flags select the mode and take precedence; environment values
+only fill missing fields in that mode. Explicit empty values are rejected.
+--personal_token cannot be combined with any other credential flag, even an empty one.
+Explicit flags for other modes ignore BK_CLI_PERSONAL_TOKEN; environment-only
+personal login requires BK_CLI_PERSONAL_TOKEN without other credential variables.
+Selected environment values with leading or trailing whitespace are rejected.
+Without credential flags, the environment must contain only one credential mode.
+With no credentials in either source, device flow remains unimplemented.
+Inject credentials through your secret manager or CI environment, then run auth login
+without credential flags to keep credential values out of the process argument list.
+
 Use single quotes around literal credentials to prevent shell expansion of $ and command substitutions.
 If a value contains a single quote, close the quotes, escape it, and reopen the quotes (e.g. 'it'\''s').
 
@@ -59,6 +69,9 @@ Tenant configuration belongs to the context, not the credential.
 Use context init/create --tenant_id or a one-off request header override.
 
 Examples:
+  # After injecting one credential mode into the environment:
+  bk-cli auth login
+  bk-cli auth login --context dev
   bk-cli auth login --bk_app_code='app' --bk_app_secret='secret' --bk_token='tok'
   bk-cli auth login --access_token='my_token'
   bk-cli auth login --personal_token='<personal-token>'
@@ -78,12 +91,22 @@ Examples:
 				}
 			}
 
-			// No flags at all → placeholder for device flow
+			input, err := resolveLoginInput(cmd)
+			if err != nil {
+				return err
+			}
+			bkAppCode, bkAppSecret := input.BkAppCode, input.BkAppSecret
+			bkToken, bkTicket, accessToken := input.BkToken, input.BkTicket, input.AccessToken
+			personalToken := input.PersonalToken
+
+			// No credential input → placeholder for device flow
 			if bkAppCode == "" && bkAppSecret == "" && bkToken == "" && bkTicket == "" &&
-				accessToken == "" && !cmd.Flags().Changed("personal_token") {
-				return output.UserError("not_implemented",
+				accessToken == "" && personalToken == "" {
+				return output.UserError(
+					"not_implemented",
 					"OAuth2 device flow not yet implemented",
-					"Provide credentials via flags. See: bk-cli auth login --help")
+					"Provide credentials via flags or environment variables. See: bk-cli auth login --help",
+				)
 			}
 
 			// Resolve context
@@ -100,7 +123,7 @@ Examples:
 			// Build credential
 			var cred *credential.Credential
 			switch {
-			case cmd.Flags().Changed("personal_token"):
+			case personalToken != "":
 				cred = &credential.Credential{
 					Type:          credential.TypePersonalToken,
 					PersonalToken: personalToken,
@@ -122,12 +145,14 @@ Examples:
 						"invalid_credentials",
 						fmt.Sprintf(
 							"app credential mode requires a user credential; provide --bk_token or --bk_ticket "+
+								"or set BK_CLI_BK_TOKEN or BK_CLI_BK_TICKET "+
 								"together with --bk_app_code and --bk_app_secret (current context defaults to --%s)",
 							userKey,
 						),
 						fmt.Sprintf(
 							"Example: bk-cli auth login --bk_app_code='APP_CODE' --bk_app_secret='APP_SECRET' "+
-								"--%s='VALUE'; or use --access_token",
+								"--%s='VALUE'; or set BK_CLI_BK_TOKEN or BK_CLI_BK_TICKET and run bk-cli auth login; "+
+								"or use --access_token",
 							userKey,
 						),
 					)
@@ -181,13 +206,17 @@ Examples:
 		},
 	}
 
-	cmd.Flags().StringVar(&bkAppCode, "bk_app_code", "", "BlueKing app code")
-	cmd.Flags().StringVar(&bkAppSecret, "bk_app_secret", "", "BlueKing app secret")
-	cmd.Flags().StringVar(&bkToken, "bk_token", "", "User token")
-	cmd.Flags().StringVar(&bkTicket, "bk_ticket", "", "User ticket")
-	cmd.Flags().StringVar(&accessToken, "access_token", "", "Access token (standalone mode)")
+	cmd.Flags().String("bk_app_code", "", "BlueKing app code (env: BK_CLI_BK_APP_CODE)")
+	cmd.Flags().String("bk_app_secret", "", "BlueKing app secret (env: BK_CLI_BK_APP_SECRET)")
+	cmd.Flags().String("bk_token", "", "User token (env: BK_CLI_BK_TOKEN)")
+	cmd.Flags().String("bk_ticket", "", "User ticket (env: BK_CLI_BK_TICKET)")
+	cmd.Flags().String(
+		"access_token",
+		"",
+		"Access token (standalone mode; env: BK_CLI_ACCESS_TOKEN)",
+	)
 
-	cmd.Flags().StringVar(&personalToken, "personal_token", "", "Personal token (exclusive Bearer mode)")
+	cmd.Flags().String("personal_token", "", "Personal token (exclusive Bearer mode; env: BK_CLI_PERSONAL_TOKEN)")
 
 	return cmd
 }
