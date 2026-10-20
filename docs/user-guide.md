@@ -163,18 +163,18 @@ bk-cli context init \
 最常见的是“应用 + 用户令牌”方式：
 
 - bk_app_code/bk_app_secret: 在 蓝鲸开发者中心 应用设置 - 基本信息
-- bk_ticket(内部上云)/bk_token(其他环境): 使用 Chrome 浏览器，登录任意一个蓝鲸站点，F12-Application-Cookies，搜索 `bk_ticket` / `bk_token`  [auth login 如何获取 bk_ticket/bk_token?](faq.md#auth-login-如何获取-bk_ticketbk_token)
+- bk_ticket/bk_token：按目标部署支持的认证方式选择。使用 Chrome 浏览器登录目标蓝鲸站点，在 F12-Application-Cookies 中查找对应的 `bk_ticket` 或 `bk_token`。详见 [auth login 如何获取 bk_ticket/bk_token?](faq.md#auth-login-如何获取-bk_ticketbk_token)。
 
 ```
 # 注意，如果 your_secret/your_bk_ticket/your_bk_token 有特殊字符例如 $或 双引号 等，请把双引号换成单引号，避免被 shell 转义导致失败
 
-(内部上云版网关)
+# 使用 bk_ticket 的部署
 bk-cli auth login \
   --bk_app_code="your_app" \
   --bk_app_secret="your_secret" \
   --bk_ticket="your_bk_ticket"
 
-（其他版本网关，例如bk-dev/bkop/sg/bk2game 等）
+# 使用 bk_token 的部署
 
 bk-cli auth login \
   --bk_app_code="your_app" \
@@ -226,7 +226,7 @@ bk-cli api bk-demo POST /api/v2/resources/ \
 
 ```
 bk-cli apigateway list_gateways --name bk-iam --fuzzy
-bk-cli cmdb search_business --bk_biz_id 2
+bk-cli cmdb search_business --bk_biz_id '<业务ID>'
 bk-cli paas create_cloud_native_app -h --body-schema
 ```
 
@@ -353,7 +353,7 @@ system 子命令更适合“平台操作”，不需要你自己拼完整接口�
 bk-cli apigateway list_gateway_apis --gateway_name bk-iam
 
 bk-cli job fast_execute_script \
-  --bk_biz_id 2 \
+  --bk_biz_id '<业务ID>' \
   --script_content "echo hello" \
   --target_server '{"host_id_list":[1]}'
 
@@ -387,6 +387,8 @@ bk-cli paas create_cloud_native_app -h --body-schema
 
 ### 观测平台：使用 SRE 提供的 Profile
 
+完整能力范围、快速开始和典型排查示例见 [监控与日志产品介绍](monitor.md)。
+
 Profile 固定业务、日志来源、指标表和 APM 应用；不保存登录凭据。先配置 Profile 引用的 context，并用自己的账号登录。
 
 ```bash
@@ -417,9 +419,9 @@ bk-cli monitor metric execute_range_query --profile game-production --component 
 顶层时间字段支持可读日期时间、RFC3339、today/yesterday/now（今天/昨天/现在）和 Unix 整数。无偏移日期默认按 Asia/Shanghai 解释，可用 `--timezone UTC` 等 IANA 时区覆盖；显式偏移和时间戳不受它影响。
 
 ```bash
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --start_time 'yesterday 10:00' --end_time 'yesterday 11:00' --limit 3
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --start_time '2026-10-13T14:00:00+08:00' --end_time '2026-10-13T15:00:00+08:00' --dry-run
 ```
 
