@@ -193,6 +193,21 @@ bk-cli auth login \
 bk-cli auth login --access_token='your_access_token'
 ```
 
+如果你的部署支持个人 token，可在个人中心生成 token、配置可调用的 API/MCP 权限，再单独登录：
+
+```bash
+bk-cli auth login --personal_token='<personal-token>'
+# 或保存到指定 context
+bk-cli auth login --context prod --personal_token='<personal-token>'
+bk-cli api httpbin GET /anything
+```
+
+`--personal_token` 与其他登录凭据 flags 互斥，不能传入 `Bearer ` 前缀、空值、空白或控制字符。同一 context 再次登录会替换原凭据，凭据仍加密保存。原始 `api` 和要求认证的系统 action 使用 Bearer 鉴权，不需要同时提供应用凭据；明确无需认证的 action 不自动携带 token。token 有效期、权限和部署支持情况由服务端判断，CLI 不管理 MCP 权限列表。
+
+`auth status/check` 显示 `credential_type=personal_token`，不显示 token；登录和 `check` 只检查本地保存状态，不验证远端权限。`logout` 删除该 context 的凭据。`--dry-run` 与 `--verbose` 的认证头均脱敏；远端响应正文仍按原样返回，服务端若回显敏感信息需自行处理。
+
+单次覆盖 Bearer 认证值可用 `--header 'Authorization:Bearer <personal-token>'`，头名忽略大小写；个人模式不能同时显式提供 `X-Bkapi-Authorization`。租户来自 context 或显式 `X-Bk-Tenant-Id`。
+
 登录后可以检查状态：
 
 ```
@@ -203,6 +218,7 @@ bk-cli doctor
 
 `auth status` 用来看当前 context 是否已有凭据，`auth check` 更适合脚本里做 fail-fast。
 `doctor` 适合排查当前机器上的 context 列表、选中的 context、凭据类型、脱敏票据、URL 模板渲染结果和网关连通性。
+个人 token 登录后，`doctor` 会显示 `personal_token` 类型和脱敏值；凭据格式无效时，本地凭据检查失败。使用 `doctor --offline` 可跳过连通性探测；本地检查通过不代表 token 的远端有效期或权限已验证。
 
 ### 第三步：先发一个原始 API 请求
 
