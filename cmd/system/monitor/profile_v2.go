@@ -26,7 +26,7 @@ import (
 
 	json "github.com/goccy/go-json"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/validate"
 )
 
@@ -63,7 +63,7 @@ var bindingResourceArgs = map[string]bool{
 }
 
 func validateV2(file *profileFile) error {
-	bad := func(message string) error { return unifiedmcp.InputError("invalid_profile_v2", message) }
+	bad := func(message string) error { return monitorapi.InputError("invalid_profile_v2", message) }
 	if len(file.Sources) == 0 || len(file.Sources) > 100 {
 		return bad("version: 2 需要 1–100 个具名 sources。")
 	}
@@ -112,7 +112,7 @@ func validateV2(file *profileFile) error {
 }
 
 func validateBinding(b *profileBinding) error {
-	bad := func(message string) error { return unifiedmcp.InputError("invalid_profile_binding", message) }
+	bad := func(message string) error { return monitorapi.InputError("invalid_profile_binding", message) }
 	var err error
 	b.Args, err = normalizeProfileArgs(b.Args)
 	if err != nil {
@@ -169,7 +169,7 @@ func validateBinding(b *profileBinding) error {
 }
 
 func validateBindingTools(b *profileBinding) error {
-	bad := func(message string) error { return unifiedmcp.InputError("invalid_profile_binding", message) }
+	bad := func(message string) error { return monitorapi.InputError("invalid_profile_binding", message) }
 	var err error
 	for name, values := range b.Tools {
 		item, ok := toolsByName[name]
@@ -209,11 +209,11 @@ func normalizeProfileArgs(values map[string]any) (map[string]any, error) {
 	}
 	raw, err := json.Marshal(values)
 	if err != nil {
-		return nil, unifiedmcp.InputError("invalid_profile_args", "Profile 参数必须是 JSON 兼容值。")
+		return nil, monitorapi.InputError("invalid_profile_args", "Profile 参数必须是 JSON 兼容值。")
 	}
 	var result map[string]any
 	if err := decodeJSON(raw, &result); err != nil {
-		return nil, unifiedmcp.InputError("invalid_profile_args", "无法解析 Profile 参数。")
+		return nil, monitorapi.InputError("invalid_profile_args", "无法解析 Profile 参数。")
 	}
 	return result, nil
 }
@@ -247,7 +247,7 @@ func validatePresetValue(p param, value any) error {
 		_, valid = value.(map[string]any)
 	}
 	if !valid {
-		return unifiedmcp.InputError(
+		return monitorapi.InputError(
 			"invalid_profile_args",
 			"参数 "+p.Name+" 的类型必须是 "+p.Type+"；完整 Schema 仍由服务端校验。",
 		)
@@ -258,7 +258,7 @@ func validatePresetValue(p param, value any) error {
 			if slices.Contains(p.Enum, text) {
 				return nil
 			}
-			return unifiedmcp.InputError("invalid_profile_args", "参数 "+p.Name+" 不在允许值中。")
+			return monitorapi.InputError("invalid_profile_args", "参数 "+p.Name+" 不在允许值中。")
 		}
 	}
 	return nil
@@ -279,7 +279,7 @@ func bindingLog(binding profileBinding, values map[string]any) (*logProfile, err
 	if raw, ok := values["index_set_id"]; ok {
 		id, valid := exactInteger(raw)
 		if !valid || id <= 0 {
-			return nil, unifiedmcp.InputError("invalid_profile_binding", "index_set_id 必须是正整数。")
+			return nil, monitorapi.InputError("invalid_profile_binding", "index_set_id 必须是正整数。")
 		}
 		l.IndexSetID = id
 	}
@@ -289,7 +289,7 @@ func bindingLog(binding profileBinding, values map[string]any) (*logProfile, err
 		l.Filters = binding.Options.Filters
 	}
 	if l.IndexSetID > 0 && l.Scene != "" {
-		return nil, unifiedmcp.InputError("profile_log_mode_mismatch", "同一 binding 不可同时指定索引集和场景。")
+		return nil, monitorapi.InputError("profile_log_mode_mismatch", "同一 binding 不可同时指定索引集和场景。")
 	}
 	return l, nil
 }

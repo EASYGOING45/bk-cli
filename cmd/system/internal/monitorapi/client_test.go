@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package unifiedmcp
+package monitorapi
 
 import (
 	"errors"
@@ -26,7 +26,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("Unified MCP decisions", func() {
+var _ = Describe("Monitor API decisions", func() {
 	It("keeps requires_resource separate from permission denial", func() {
 		decision := StateDecision(map[string]any{"state": "requires_resource"})
 		Expect(decision.Code).To(Equal("needs_resource"))
@@ -79,6 +79,13 @@ var _ = Describe("Unified MCP decisions", func() {
 			map[string]any{"message": "table does not exist SECRET"},
 			"resource_not_found",
 		),
+		Entry(
+			"native missing index",
+			200,
+			map[string]any{"message": "No LogIndexSet matches the given query. SECRET"},
+			"resource_not_found",
+		),
+		Entry("unpublished API", 404, nil, "api_not_found"),
 		Entry("IAM unavailable", 200, map[string]any{"code": 503, "message": "SECRET"}, "retry_later"),
 		Entry(
 			"structured denial",

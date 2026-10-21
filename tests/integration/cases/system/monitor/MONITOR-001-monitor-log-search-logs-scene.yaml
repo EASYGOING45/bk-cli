@@ -47,7 +47,7 @@ steps:
         - path: ok
           equals: true
         - path: data.path
-          contains: /bk-monitor/prod/mcp/execute_tool/
+          contains: /bk-monitor/prod/mcp/search_logs/
         - path: data.tool_args.target_type
           equals: scene
         - path: data.tool_args.table_id_conditions.0.0.value.0

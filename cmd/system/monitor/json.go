@@ -24,7 +24,7 @@ import (
 
 	json "github.com/goccy/go-json"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 // decodeJSON consumes exactly one JSON value and preserves the original number literals.
@@ -39,7 +39,7 @@ func decodeJSON(raw []byte, target any) error {
 
 func jsonObject(raw []byte, target *map[string]any) error {
 	if err := decodeJSON(raw, target); err != nil || *target == nil {
-		return unifiedmcp.InputError("invalid_body", "--body 必须是 JSON 对象。")
+		return monitorapi.InputError("invalid_body", "--body 必须是 JSON 对象。")
 	}
 	return nil
 }

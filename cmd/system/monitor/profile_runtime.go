@@ -23,12 +23,10 @@ import (
 	"errors"
 	"strings"
 
-	json "github.com/goccy/go-json"
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
-	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -38,6 +36,13 @@ type (
 )
 
 func addProfileFlags(cmd *cobra.Command) {
+	if cmd.Name() == "show" {
+		output.AddJQFlag(cmd)
+	} else {
+		var stage string
+		var headers []string
+		systemcmd.AddCommonRequestFlagsWithoutBody(cmd, &stage, &headers)
+	}
 	cmd.Flags().String("profile", "", "Named SRE-maintained observability profile (no credentials)")
 	cmd.Flags().String("component", "", "V2 business component; required when the profile has multiple components")
 	cmd.Flags().String(
@@ -71,7 +76,7 @@ func selectProfile(cmd *cobra.Command, deps systemcmd.BuildDeps) (systemcmd.Buil
 	if name == "" {
 		if cmd.Flags().Changed("profile") || fileFlag != "" || cmd.Flags().Changed("component") ||
 			cmd.Flags().Changed("binding") {
-			return deps, unifiedmcp.InputError(
+			return deps, monitorapi.InputError(
 				"needs_profile",
 				"请用 --profile 选择名字；查看可用配置：bk-cli monitor profile list --profile_file FILE。",
 			)
@@ -88,7 +93,7 @@ func selectProfile(cmd *cobra.Command, deps systemcmd.BuildDeps) (systemcmd.Buil
 	}
 	p, ok := file.Profiles[name]
 	if !ok {
-		return deps, unifiedmcp.InputError("profile_not_found", "文件中没有该 Profile；用 profile list 查看名称。")
+		return deps, monitorapi.InputError("profile_not_found", "文件中没有该 Profile；用 profile list 查看名称。")
 	}
 	selection := &selectedProfile{
 		Name:       name,
@@ -112,7 +117,7 @@ func selectProfile(cmd *cobra.Command, deps systemcmd.BuildDeps) (systemcmd.Buil
 		component, _ := cmd.Flags().GetString("component")
 		binding, _ := cmd.Flags().GetString("binding")
 		if component != "" || binding != "" {
-			return deps, unifiedmcp.InputError(
+			return deps, monitorapi.InputError(
 				"profile_version_mismatch",
 				"--component/--binding 需要 version: 2。",
 			)
@@ -123,7 +128,7 @@ func selectProfile(cmd *cobra.Command, deps systemcmd.BuildDeps) (systemcmd.Buil
 
 func runMonitor(
 	deps systemcmd.BuildDeps,
-	fn func(*cobra.Command, *syslib.Runtime) error,
+	fn func(*cobra.Command, *monitorapi.Runtime) error,
 ) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
 		bound, err := selectProfile(cmd, deps)
@@ -134,8 +139,9 @@ func runMonitor(
 				cmd.Flags().Lookup("tool") == nil {
 				return runV2Report(cmd, bound, p, false, false, false)
 			}
-			var rt *syslib.Runtime
-			rt, err = systemcmd.ResolveRuntime(bound)
+			raw, resolveErr := systemcmd.ResolveRuntime(bound)
+			err = resolveErr
+			rt := monitorapi.Bind(cmd, raw)
 			if err == nil {
 				cmd.SetContext(context.WithValue(cmd.Context(), runtimeContextKey{}, rt.ContextName))
 				err = fn(cmd, rt)
@@ -178,28 +184,23 @@ func profileMetadata(selection *selectedProfile) map[string]any {
 func writeMonitorEnvelope(cmd *cobra.Command, env *output.Envelope) error {
 	selection := currentProfile(cmd)
 	if selection == nil {
-		return env.WriteJSON(cmd.OutOrStdout())
+		return output.WriteCommandEnvelope(cmd, env)
 	}
-	encoder := json.NewEncoder(cmd.OutOrStdout())
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(struct {
-		*output.Envelope
-		Profile map[string]any `json:"profile"`
-	}{env, profileMetadata(selection)})
+	return output.WriteCommandEnvelopeWithMetadata(cmd, env, map[string]any{"profile": profileMetadata(selection)})
 }
 
 func printMonitorFailure(cmd *cobra.Command, err error) error {
 	selection := currentProfile(cmd)
-	var decision *unifiedmcp.Decision
+	var decision *monitorapi.Decision
 	if selection != nil && errors.As(err, &decision) {
 		for i, next := range decision.Next {
 			if strings.HasPrefix(next, "bk-cli monitor ") {
 				decision.Next[i] = next + profileSuffix(selection)
 			}
 		}
-		return unifiedmcp.PrintFailure(cmd, err, map[string]any{"profile": profileMetadata(selection)})
+		return monitorapi.PrintFailure(cmd, err, map[string]any{"profile": profileMetadata(selection)})
 	}
-	return unifiedmcp.PrintFailure(cmd, err)
+	return monitorapi.PrintFailure(cmd, err)
 }
 
 func shellQuote(value string) string { return "'" + strings.ReplaceAll(value, "'", "'\"'\"'") + "'" }

@@ -23,7 +23,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 const (
@@ -92,7 +92,7 @@ func addConvenienceFlags(cmd *cobra.Command, item tool) {
 	}
 }
 
-// applyConvenienceFlags only builds documented Unified arguments; it does not infer resources or permissions.
+// applyConvenienceFlags only builds documented API arguments; it does not infer resources or permissions.
 func applyConvenienceFlags(cmd *cobra.Command, item tool, args map[string]any) error {
 	switch item.Name {
 	case "search_logs", "get_scene_log_fields":
@@ -117,11 +117,11 @@ func applyScene(cmd *cobra.Command, item tool, args map[string]any) error {
 	where, _ := cmd.Flags().GetStringArray(whereFlag)
 	if scene == "" {
 		if len(where) > 0 {
-			return unifiedmcp.InputError("where_needs_scene", "--where 需要和 --scene 一起使用。")
+			return monitorapi.InputError("where_needs_scene", "--where 需要和 --scene 一起使用。")
 		}
 		if item.Name == "search_logs" && args["index_set_id"] == nil && args["table_id_conditions"] == nil {
 			biz := jsonText(args["bk_biz_id"])
-			return unifiedmcp.InputError("needs_resource", "需要选择日志场景或索引集。这不是无权。",
+			return monitorapi.InputError("needs_resource", "需要选择日志场景或索引集。这不是无权。",
 				"bk-cli monitor log list_log_scenes --bk_biz_id "+biz,
 				"bk-cli monitor log list_index_sets --bk_biz_id "+biz)
 		}
@@ -131,7 +131,7 @@ func applyScene(cmd *cobra.Command, item tool, args map[string]any) error {
 		return nil
 	}
 	if args["index_set_id"] != nil || args["table_id_conditions"] != nil {
-		return unifiedmcp.InputError(
+		return monitorapi.InputError(
 			"conflicting_target",
 			"--scene 不能与 --index_set_id 或 --table_id_conditions 同时使用。",
 		)
@@ -141,7 +141,7 @@ func applyScene(cmd *cobra.Command, item tool, args map[string]any) error {
 		key, value, ok := strings.Cut(raw, "=")
 		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
 		if !ok || key == "" || value == "" {
-			return unifiedmcp.InputError("invalid_where", "--where 使用 KEY=VALUE。")
+			return monitorapi.InputError("invalid_where", "--where 使用 KEY=VALUE。")
 		}
 		conditions = append(conditions, map[string]any{"field_name": key, "value": []any{value}, "op": "eq"})
 	}

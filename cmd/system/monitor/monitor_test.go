@@ -333,8 +333,7 @@ func dryRunArgs(cmd *cobra.Command) map[string]any {
 	Expect(err).NotTo(HaveOccurred())
 	var env map[string]any
 	Expect(json.Unmarshal([]byte(stdout), &env)).To(Succeed())
-	body := env["request"].(map[string]any)["body"].(map[string]any)
-	return body["tool_args"].(map[string]any)
+	return previewArgs(env)
 }
 
 func checkServer(calls *[]string, permission string) *httptest.Server {
@@ -363,11 +362,41 @@ func checkServer(calls *[]string, permission string) *httptest.Server {
 }
 
 func facade(path string) string {
-	return strings.TrimSuffix(strings.TrimPrefix(path, "/bk-monitor/prod/mcp/"), "/")
+	parts := strings.Split(strings.Trim(path, "/"), "/")
+	return parts[len(parts)-1]
 }
 
 func setFlags(cmd *cobra.Command, values ...string) {
 	for i := 0; i < len(values); i += 2 {
 		Expect(cmd.Flags().Set(values[i], values[i+1])).To(Succeed())
 	}
+}
+
+// previewArgs reads the business arguments at their documented HTTP location.
+func previewArgs(env map[string]any) map[string]any {
+	request := env["request"].(map[string]any)
+	if body, ok := request["body"].(map[string]any); ok {
+		return body
+	}
+	return request["params"].(map[string]any)
+}
+
+func readMonitorRequest(r *http.Request) map[string]any {
+	if r.Method != http.MethodGet {
+		var body map[string]any
+		Expect(json.NewDecoder(r.Body).Decode(&body)).To(Succeed())
+		return body
+	}
+	result := map[string]any{}
+	for key, values := range r.URL.Query() {
+		result[key] = values[0]
+		for _, param := range toolsByName[facade(r.URL.Path)].Params {
+			if param.Name == key && param.Type != "string" {
+				var value any
+				Expect(json.Unmarshal([]byte(values[0]), &value)).To(Succeed())
+				result[key] = value
+			}
+		}
+	}
+	return result
 }

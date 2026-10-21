@@ -178,8 +178,7 @@ var _ = Describe("heterogeneous profiles v2", func() {
 		handler := func(label string) http.HandlerFunc {
 			return func(w http.ResponseWriter, r *http.Request) {
 				defer GinkgoRecover()
-				var req map[string]any
-				Expect(json.NewDecoder(r.Body).Decode(&req)).To(Succeed())
+				req := readMonitorRequest(r)
 				requests <- map[string]any{"server": label, "body": req}
 				Expect(
 					json.NewEncoder(
@@ -187,11 +186,7 @@ var _ = Describe("heterogeneous profiles v2", func() {
 					).Encode(
 						map[string]any{
 							"result": true,
-							"data": map[string]any{
-								"status":    "success",
-								"tool_name": req["tool_name"],
-								"data":      map[string]any{},
-							},
+							"data":   map[string]any{},
 						},
 					),
 				).To(
@@ -225,7 +220,7 @@ var _ = Describe("heterogeneous profiles v2", func() {
 			Expect(err).NotTo(HaveOccurred())
 			r := <-requests
 			Expect(r["server"]).To(Equal(tc.server))
-			args := r["body"].(map[string]any)["tool_args"].(map[string]any)
+			args := r["body"].(map[string]any)
 			Expect(args["bk_biz_id"]).To(Equal(tc.biz))
 			if tc.index > 0 {
 				Expect(args["index_set_id"]).To(Equal(tc.index))

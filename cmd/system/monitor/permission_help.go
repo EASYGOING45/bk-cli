@@ -24,7 +24,7 @@ import (
 	"strings"
 )
 
-// permissionLines describes the reviewed metadata in help text. The live decision always comes from Unified.
+// permissionLines describes the reviewed metadata in help text. The live decision always comes from the server.
 func permissionLines(item tool) []string {
 	spec := item.Permission
 	if spec.Mode == "exempt" {

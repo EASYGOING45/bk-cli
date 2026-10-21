@@ -114,7 +114,7 @@ profiles:
 		)
 		env, err := runProfileCommand(cmd)
 		Expect(err).NotTo(HaveOccurred())
-		args := env["request"].(map[string]any)["body"].(map[string]any)["tool_args"].(map[string]any)
+		args := previewArgs(env)
 		Expect(args["query_string"]).To(Equal(`component:"api" AND namespace:"ns-b"`))
 		Expect(args["table_id_conditions"].([]any)[0]).To(HaveLen(2))
 		profile := env["profile"].(map[string]any)

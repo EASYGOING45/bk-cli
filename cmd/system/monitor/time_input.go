@@ -27,7 +27,7 @@ import (
 	json "github.com/goccy/go-json"
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 const defaultTimeZone = "Asia/Shanghai"
@@ -54,14 +54,14 @@ func applyTimeInputs(cmd *cobra.Command, item tool, args map[string]any, since s
 	}
 	zone, _ := cmd.Flags().GetString("timezone")
 	if zone == "" || zone == "Local" {
-		return unifiedmcp.InputError(
+		return monitorapi.InputError(
 			"invalid_timezone",
 			"--timezone 使用明确的 IANA 时区（如 Asia/Shanghai）或 UTC，不使用 Local。",
 		)
 	}
 	location, err := time.LoadLocation(zone)
 	if err != nil {
-		return unifiedmcp.InputError("invalid_timezone", "无法识别 --timezone；请使用 Asia/Shanghai、UTC 等 IANA 时区。")
+		return monitorapi.InputError("invalid_timezone", "无法识别 --timezone；请使用 Asia/Shanghai、UTC 等 IANA 时区。")
 	}
 	reference := now() // One clock sample for both endpoints, including calendar keywords.
 	parsed := map[string]time.Time{}
@@ -92,13 +92,13 @@ func applyTimeInputs(cmd *cobra.Command, item tool, args map[string]any, since s
 	if start, ok := parsed["start_time"]; ok {
 		if end, exists := parsed["end_time"]; exists {
 			if !start.Before(end) {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"invalid_time_range",
 					"start_time 必须早于 end_time；不会交换或扩展时间边界。",
 				)
 			}
 			if item.Name == "search_logs" && end.Sub(start) > 24*time.Hour {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"invalid_time_range",
 					"日志检索单次窗口不能超过 24h；请显式拆分，CLI 不截断或自动翻页。",
 				)
@@ -118,7 +118,7 @@ func applyTimeInputs(cmd *cobra.Command, item tool, args map[string]any, since s
 }
 
 func timeConflict() error {
-	return unifiedmcp.InputError("conflicting_time", "--since 不能与 start_time/end_time 同时使用（命名参数和 --body 都算）。")
+	return monitorapi.InputError("conflicting_time", "--since 不能与 start_time/end_time 同时使用（命名参数和 --body 都算）。")
 }
 
 func timeResolution(unit string) time.Duration {
@@ -131,7 +131,7 @@ func timeResolution(unit string) time.Duration {
 func relativeWindow(item tool, since string, reference time.Time) (time.Time, time.Time, error) {
 	duration, err := time.ParseDuration(since)
 	if err != nil || duration <= 0 || duration > 24*time.Hour || duration%timeResolution(timeUnit(item)) != 0 {
-		return time.Time{}, time.Time{}, unifiedmcp.InputError(
+		return time.Time{}, time.Time{}, monitorapi.InputError(
 			"invalid_since",
 			"--since 使用 15m、1h、1h30m 等正时长，不超过 24h，且须满足工具的整秒/整毫秒精度。",
 		)
@@ -180,7 +180,7 @@ func parseTimeValue(value any, unit string, location *time.Location, reference t
 			maximum = maximum*1000 + 999
 		}
 		if n < minimum || n > maximum {
-			return time.Time{}, unifiedmcp.InputError(
+			return time.Time{}, monitorapi.InputError(
 				"invalid_time",
 				"时间戳超出可表示日期范围；检查该工具的秒/毫秒单位，或显式使用 s/ms 后缀。",
 			)
@@ -207,13 +207,13 @@ func parseTimeValue(value any, unit string, location *time.Location, reference t
 			location,
 		)
 		if !sameWallTime(t, wall) {
-			return time.Time{}, unifiedmcp.InputError(
+			return time.Time{}, monitorapi.InputError(
 				"nonexistent_local_time",
 				"该当地时刻因时区切换而不存在；请提供明确的 RFC3339 时间。",
 			)
 		}
 		if ambiguousWallTime(t, wall, location) {
-			return time.Time{}, unifiedmcp.InputError(
+			return time.Time{}, monitorapi.InputError(
 				"ambiguous_local_time",
 				"该当地时刻对应两个时间点；请使用带 UTC 偏移的 RFC3339 时间。",
 			)
@@ -265,7 +265,7 @@ func checkedTime(t time.Time, unit string) (time.Time, error) {
 		return time.Time{}, invalidTime()
 	}
 	if t.Nanosecond()%int(timeResolution(unit)) != 0 {
-		return time.Time{}, unifiedmcp.InputError("invalid_time_precision", "输入时间的精度超过该工具支持的整秒/整毫秒精度；不会静默舍入。")
+		return time.Time{}, monitorapi.InputError("invalid_time_precision", "输入时间的精度超过该工具支持的整秒/整毫秒精度；不会静默舍入。")
 	}
 	return t, nil
 }
@@ -281,11 +281,11 @@ func encodedTime(p param, t time.Time) (any, error) {
 	if p.Type == "string" {
 		return strconv.FormatInt(n, 10), nil
 	}
-	return nil, unifiedmcp.InputError("unsupported_time_contract", "工具的时间字段类型不受支持；需要复核工具目录。")
+	return nil, monitorapi.InputError("unsupported_time_contract", "工具的时间字段类型不受支持；需要复核工具目录。")
 }
 
 func invalidTime() error {
-	return unifiedmcp.InputError(
+	return monitorapi.InputError(
 		"invalid_time",
 		"时间使用整型 Unix 时间戳（可带 s/ms 后缀）、YYYY-MM-DD HH:MM[:SS]、RFC3339、today/yesterday/now 或 今天/昨天/现在；不猜测模糊短语。",
 	)

@@ -35,7 +35,7 @@ import (
 
 	"go.yaml.in/yaml/v3"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/config"
 	"github.com/TencentBlueKing/bk-cli/internal/validate"
 )
@@ -106,7 +106,7 @@ func profileFilePath(explicit string) (string, error) {
 	}
 	path, err := filepath.Abs(explicit)
 	if err != nil {
-		return "", unifiedmcp.InputError("invalid_profile_file", "无法解析 Profile 文件路径。")
+		return "", monitorapi.InputError("invalid_profile_file", "无法解析 Profile 文件路径。")
 	}
 	return path, nil
 }
@@ -114,7 +114,7 @@ func profileFilePath(explicit string) (string, error) {
 func loadProfiles(path string) (*profileFile, string, error) {
 	raw, err := readFileLimited(path)
 	if err != nil {
-		return nil, "", unifiedmcp.InputError(
+		return nil, "", monitorapi.InputError(
 			"invalid_profile_file",
 			"Profile 文件不可读、为空或超过 64 KiB；检查 --profile_file。",
 		)
@@ -124,17 +124,17 @@ func loadProfiles(path string) (*profileFile, string, error) {
 	var file profileFile
 	// Do not echo YAML parser errors: they may contain values mistakenly used as credentials.
 	if err := decoder.Decode(&file); err != nil {
-		return nil, "", unifiedmcp.InputError(
+		return nil, "", monitorapi.InputError(
 			"invalid_profile_file",
 			"Profile YAML 格式、类型或字段不合法；支持 version、profiles 及文档列出的资源字段。",
 		)
 	}
 	var extra any
 	if err := decoder.Decode(&extra); !errors.Is(err, io.EOF) {
-		return nil, "", unifiedmcp.InputError("invalid_profile_file", "Profile 文件只允许一个 YAML 文档。")
+		return nil, "", monitorapi.InputError("invalid_profile_file", "Profile 文件只允许一个 YAML 文档。")
 	}
 	if (file.Version != 1 && file.Version != 2) || len(file.Profiles) == 0 || len(file.Profiles) > 100 {
-		return nil, "", unifiedmcp.InputError(
+		return nil, "", monitorapi.InputError(
 			"invalid_profile_file",
 			"需要 version: 1 或 2，且 profiles 包含 1–100 个具名配置。",
 		)
@@ -146,11 +146,11 @@ func loadProfiles(path string) (*profileFile, string, error) {
 		return &file, fmt.Sprintf("%x", sha256.Sum256(raw)), nil
 	}
 	if len(file.Sources) > 0 {
-		return nil, "", unifiedmcp.InputError("invalid_profile_file", "sources 需要 version: 2。")
+		return nil, "", monitorapi.InputError("invalid_profile_file", "sources 需要 version: 2。")
 	}
 	for _, name := range sortedProfileNames(&file) {
 		if !profileNamePattern.MatchString(name) {
-			return nil, "", unifiedmcp.InputError(
+			return nil, "", monitorapi.InputError(
 				"invalid_profile_name",
 				"Profile 名称限 1–128 个字母、数字、点、下划线或连字符，首字符为字母或数字。",
 			)
@@ -172,7 +172,7 @@ func sortedProfileNames(file *profileFile) []string {
 }
 
 func validateProfile(p queryProfile) error {
-	invalid := func(message string) error { return unifiedmcp.InputError("invalid_profile", message) }
+	invalid := func(message string) error { return monitorapi.InputError("invalid_profile", message) }
 	if len(p.Components) > 0 || p.Environment != "" {
 		return invalid("components/environment 需要 version: 2。")
 	}
@@ -220,7 +220,7 @@ func profileArgs(selection *selectedProfile, item tool, args map[string]any, sce
 	}
 	p := selection.Profile
 	if value, exists := args["bk_biz_id"]; exists && jsonText(value) != p.BizID {
-		return unifiedmcp.InputError(
+		return monitorapi.InputError(
 			"profile_business_mismatch",
 			"显式业务与 Profile 不一致；请选择对应 Profile 或移除 --profile。",
 		)
@@ -236,7 +236,7 @@ func profileArgs(selection *selectedProfile, item tool, args map[string]any, sce
 		switch {
 		case l.IndexSetID > 0:
 			if scene != "" || args["table_id_conditions"] != nil || args["target_type"] == "scene" {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"profile_log_mode_mismatch",
 					"索引集 Profile 不能与场景查询混用；请换 Profile 或移除 --profile。",
 				)
@@ -246,23 +246,23 @@ func profileArgs(selection *selectedProfile, item tool, args map[string]any, sce
 				fill("conditions", l.Conditions)
 			}
 		case l.Scene != "" && hasParam(item, "index_set_id") && !hasParam(item, "table_id_conditions"):
-			return unifiedmcp.InputError(
+			return monitorapi.InputError(
 				"profile_log_mode_mismatch",
 				"此工具需要索引集，当前 Profile 是场景模式；不会自动切换数据源。",
 			)
 		case l.Scene != "" && hasParam(item, "table_id_conditions"):
 			if args["index_set_id"] != nil || args["target_type"] == "index_set" {
-				return unifiedmcp.InputError("profile_log_mode_mismatch", "场景 Profile 不能与索引集查询混用。")
+				return monitorapi.InputError("profile_log_mode_mismatch", "场景 Profile 不能与索引集查询混用。")
 			}
 			if scene != "" && scene != l.Scene {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"profile_log_mode_mismatch",
 					"显式 scene 与 Profile 不一致；请换 Profile 或移除 --profile。",
 				)
 			}
 			// Explicit table_id_conditions replace the entire route; do not deep-merge boolean logic.
 			if _, exists := args["table_id_conditions"]; exists && (scene != "" || len(where) > 0) {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"conflicting_target",
 					"显式 table_id_conditions 不能与 --scene/--where 同时使用。",
 				)
@@ -348,7 +348,7 @@ func sceneConditions(scene string, defaults map[string]string, where []string) (
 		key, value, ok := strings.Cut(raw, "=")
 		key, value = strings.TrimSpace(key), strings.TrimSpace(value)
 		if !ok || key == "" || value == "" || key == "scene" {
-			return nil, unifiedmcp.InputError("invalid_where", "--where 使用非空 KEY=VALUE；scene 使用 --scene。")
+			return nil, monitorapi.InputError("invalid_where", "--where 使用非空 KEY=VALUE；scene 使用 --scene。")
 		}
 		filters[key] = value
 	}

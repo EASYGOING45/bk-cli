@@ -30,37 +30,37 @@
 
 ## 实际命令
 
-以下在已配置的 `monitor-production` Profile 下执行；日期示例仅演示格式，查询前注意数据保留期。
+以下在已配置的 `game-production` Profile 下执行；日期示例仅演示格式，查询前注意数据保留期。
 
 ```bash
 # 最近 90 分钟
-bk-cli monitor log search_logs --profile monitor-production --component worker --since 1h30m --limit 3
+bk-cli monitor log search_logs --profile game-production --component worker --since 1h30m --limit 3
 
 # 昨天 10 点到 11 点，默认北京时间
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --start_time 'yesterday 10:00' --end_time 'yesterday 11:00' --limit 3
 
 # 固定日期时间
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --start_time '2026-10-13 14:00:00' --end_time '2026-10-13 15:00:00' --limit 3
 
 # 明确使用 UTC；也可直接传带 Z 或 +08:00 的 RFC3339 字符串
-bk-cli monitor metric execute_range_query --profile monitor-production --component backend \
-  --binding latency-mean --start_time '2026-10-13 06:00' --end_time '2026-10-13 07:00' --timezone UTC
+bk-cli monitor metric execute_range_query --profile game-production --component backend \
+  --binding latency --start_time '2026-10-13 06:00' --end_time '2026-10-13 07:00' --timezone UTC
 
 # 时间戳，显式写单位最不容易用错
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --start_time 1791871200s --end_time 1791874800s --limit 3
 
 # 今天零点至今；不是滚动 24 小时
-bk-cli monitor apm search_spans --profile monitor-production --component backend \
+bk-cli monitor apm search_spans --profile game-production --component backend \
   --start_time today --end_time now --limit 3
 ```
 
 `--body` 内的顶层时间也会转换；timezone 只作为 CLI flag，不放进 API body：
 
 ```bash
-bk-cli monitor log search_logs --profile monitor-production --component worker \
+bk-cli monitor log search_logs --profile game-production --component worker \
   --body '{"start_time":"昨天 10:00","end_time":"昨天 11:00","limit":3}'
 ```
 

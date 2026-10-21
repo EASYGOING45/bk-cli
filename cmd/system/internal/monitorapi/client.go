@@ -16,15 +16,16 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-// Package unifiedmcp calls bk-monitor's user-mode Unified MCP facades for monitor/log commands.
+// Package monitorapi calls individual Monitor HTTP APIs through the shared request executor.
 // The server remains the source of truth for tool contracts, resource ownership and permissions.
-package unifiedmcp
+package monitorapi
 
 import (
 	"errors"
 	"fmt"
 	"maps"
 	"net/http"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -44,8 +45,7 @@ const (
 	maxWindow       = 24 * time.Hour
 )
 
-// authConfig mirrors unified_mcp.yaml (user=true, app=false, resource=true). Go actions do not
-// pass through the YAML loader; aligning that loader rule is tracked as a separate proposal.
+// Diagnostic endpoints use the same user-authenticated gateway policy as the tool APIs.
 var authConfig = &syslib.AuthConfig{UserVerifiedRequired: true, ResourcePermissionRequired: true}
 
 var (
@@ -65,11 +65,39 @@ var judgments = map[string]bool{
 	"permission_missing": true, "permission_denied": true, "resource_blocked": true, "retry_later": true,
 }
 
-// Reply is the unwrapped Unified data plus trace metadata.
+// Endpoint is the reviewed HTTP operation for one read-only command.
+type Endpoint struct {
+	Method      string            `json:"method"`
+	Path        string            `json:"path"`
+	QueryParams []string          `json:"query_params"`
+	Auth        syslib.AuthConfig `json:"auth"`
+}
+
+var endpoints = map[string]Endpoint{}
+
+// SetEndpoints installs routes from the reviewed API catalog, never from user input.
+func SetEndpoints(routes map[string]Endpoint) { endpoints = routes }
+
+// Runtime adds invocation-scoped request options without changing shared context or credentials.
+type Runtime struct {
+	*syslib.Runtime
+	Stage   string
+	Headers []string
+}
+
+// Bind preserves options for every request made by a command, including preflight requests.
+func Bind(cmd *cobra.Command, rt *syslib.Runtime) *Runtime {
+	stage, _ := cmd.Flags().GetString("stage")
+	headers, _ := cmd.Flags().GetStringArray("header")
+	return &Runtime{Runtime: rt, Stage: stage, Headers: headers}
+}
+
+// Reply is the unwrapped API data plus trace metadata.
 type Reply struct {
 	Data      any
 	RequestID string
 	dryRun    *output.Envelope
+	envelope  *output.Envelope
 }
 
 // IsDryRun reports whether the reply is a local preview without a response.
@@ -115,24 +143,49 @@ func Command(tool string) string { return commandFor(tool) }
 // NextCommands returns commands that produce the identifiers required by a tool.
 func NextCommands(tool, biz string) []string { return nextFor(tool, biz) }
 
-// Call posts one Unified facade request through the shared bk-cli request layer.
-func Call(rt *syslib.Runtime, facade string, body map[string]any) (*Reply, error) {
-	bodyJSON, err := systemcmd.MarshalJSON(body)
-	if err != nil {
-		return nil, err
+// Call requests an explicit diagnostic API; business commands use their own Endpoint.
+func Call(rt *Runtime, name string, body map[string]any) (*Reply, error) {
+	switch name {
+	case "lookup_tool", "lookup_tool_schema", "lookup_permissions", "lookup_metadata":
+		return request(rt, Endpoint{Method: "POST", Path: "/mcp/" + name + "/", Auth: *authConfig}, body)
+	default:
+		return nil, InputError("tool_not_allowed", "未知的诊断 API。")
 	}
-	result, err := syslib.ExecuteRequest(rt, syslib.RequestSpec{
-		GatewayName: gatewayName,
-		Method:      "POST",
-		Path:        "/mcp/" + facade + "/",
-		BodyJSON:    bodyJSON,
-		AuthConfig:  authConfig,
-	})
+}
+
+func request(rt *Runtime, endpoint Endpoint, args map[string]any) (*Reply, error) {
+	query, body := map[string]any{}, map[string]any{}
+	for key, value := range args {
+		inQuery := endpoint.Method == http.MethodGet || slices.Contains(endpoint.QueryParams, key)
+		if inQuery {
+			query[key] = value
+		} else {
+			body[key] = value
+		}
+	}
+	spec := syslib.RequestSpec{
+		GatewayName: gatewayName, Method: endpoint.Method,
+		Path: endpoint.Path, Stage: rt.Stage, Headers: rt.Headers, AuthConfig: &endpoint.Auth,
+	}
+	var err error
+	if len(query) > 0 {
+		spec.ParamsJSON, err = systemcmd.MarshalJSON(query)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if len(body) > 0 || endpoint.Method != http.MethodGet {
+		spec.BodyJSON, err = systemcmd.MarshalJSON(body)
+		if err != nil {
+			return nil, err
+		}
+	}
+	result, err := syslib.ExecuteRequest(rt.Runtime, spec)
 	if err != nil {
 		return nil, err
 	}
 	env := result.Envelope
-	if err := systemcmd.EnsureEnvelope(facade, env); err != nil {
+	if err := systemcmd.EnsureEnvelope(endpoint.Path, env); err != nil {
 		return nil, err
 	}
 	if env.DryRun {
@@ -143,15 +196,24 @@ func Call(rt *syslib.Runtime, facade string, body map[string]any) (*Reply, error
 	if !env.OK || wrapped == nil || wrapped["result"] != true {
 		return nil, classify(env.Status, wrapped, rid)
 	}
-	return &Reply{Data: wrapped["data"], RequestID: rid}, nil
+	if Map(wrapped["meta"])["truncated"] == true {
+		return nil, &Decision{
+			Code:      "partial_result",
+			Message:   "服务端标记结果被截断；请缩小查询范围。",
+			ExitCode:  output.ExitCodeSystemError,
+			RequestID: rid,
+		}
+	}
+	return &Reply{Data: wrapped["data"], RequestID: rid, envelope: env}, nil
 }
 
-// Execute runs one reviewed read-only tool. Unified validates and authorizes it again server-side.
-func Execute(rt *syslib.Runtime, tool string, args map[string]any) (*Reply, error) {
-	if !Supported(tool) {
-		return nil, InputError("tool_not_allowed", "该工具不在 monitor 的只读白名单中。")
+// Execute calls the selected tool's own HTTP operation. No generic execute dispatcher is used.
+func Execute(rt *Runtime, tool string, args map[string]any) (*Reply, error) {
+	endpoint, found := endpoints[tool]
+	if !Supported(tool) || !found {
+		return nil, InputError("tool_not_allowed", "该工具没有经过审查的只读 API 路由。")
 	}
-	reply, err := Call(rt, "execute_tool", map[string]any{"tool_name": tool, "tool_args": args})
+	reply, err := request(rt, endpoint, args)
 	if err != nil {
 		var decision *Decision
 		if errors.As(err, &decision) && resourceDecisions[decision.Code] {
@@ -172,7 +234,6 @@ func Execute(rt *syslib.Runtime, tool string, args map[string]any) (*Reply, erro
 	if reply.IsDryRun() {
 		return reply, nil
 	}
-	result, _ := reply.Data.(map[string]any)
 	fail := func(code, message string) (*Reply, error) {
 		return nil, &Decision{
 			Code:      code,
@@ -181,35 +242,27 @@ func Execute(rt *syslib.Runtime, tool string, args map[string]any) (*Reply, erro
 			RequestID: reply.RequestID,
 		}
 	}
-	if result == nil || result["status"] != "success" || result["tool_name"] != tool {
-		return fail("execution_failed", "Unified 没有明确返回该工具执行成功。")
-	}
-	if meta, _ := result["meta"].(map[string]any); meta["truncated"] == true {
-		return fail("partial_result", "服务端标记结果被截断；不当作完整成功。请缩小时间、条数或字段。")
-	}
-	if payload, ok := result["data"].(map[string]any); ok {
+	if payload, ok := reply.Data.(map[string]any); ok {
 		switch {
 		case payload["result"] == false:
 			return fail("business_error", "底层业务返回失败，不能当作空结果。")
-		case payload["is_partial"] == true:
-			return fail("partial_result", "上游只返回了部分结果；不当作完整成功。")
+		case payload["is_partial"] == true || Map(payload["meta"])["truncated"] == true:
+			return fail("partial_result", "上游只返回部分结果；请缩小查询范围。")
 		case tool == "execute_range_query" && payload["status"] == "error":
 			return fail("query_error", "指标查询引擎返回错误；检查 PromQL。")
 		}
 	}
 	if tool == "find_relations" || tool == "find_relations_range" {
-		// UnifyQuery batches use an HTTP-style code per item, even when the outer request succeeds.
-		rows := List(Map(result["data"])["data"])
+		rows := List(Map(reply.Data)["data"])
 		if len(rows) == 0 || len(rows) != len(List(args["query_list"])) {
-			return fail("partial_result", "关联查询没有返回与请求数量一致的子项；不当作完整成功。")
+			return fail("partial_result", "关联查询没有返回与请求数量一致的子项。")
 		}
 		for _, row := range rows {
 			if fmt.Sprint(Map(row)["code"]) != strconv.Itoa(http.StatusOK) {
-				return fail("relation_query_failed", "关联查询存在失败子项；根据请求 ID 排查，不当作空结果。")
+				return fail("relation_query_failed", "关联查询存在失败子项；根据请求 ID 排查。")
 			}
 		}
 	}
-	reply.Data = result["data"]
 	return reply, nil
 }
 
@@ -300,7 +353,12 @@ var rules = []rule{
 		"该资源不在目标业务的可见目录中。请从列表命令重新选择，不要换业务或猜 ID。",
 		output.ExitCodeUserError,
 	},
-	{[]string{"does not exist"}, "resource_not_found", "资源不存在。请从列表命令返回值中选择。", output.ExitCodeUserError},
+	{
+		[]string{"does not exist", "no logindexset matches the given query"},
+		"resource_not_found",
+		"资源不存在。请从列表命令返回值中选择。",
+		output.ExitCodeUserError,
+	},
 	{
 		[]string{"3626305"},
 		"extract_policy_missing",
@@ -333,6 +391,13 @@ func classify(status int, body map[string]any, rid string) *Decision {
 	}
 	code := fmt.Sprint(body["code"])
 	switch {
+	case status == http.StatusNotFound:
+		return &Decision{
+			Code:      "api_not_found",
+			Message:   "目标网关阶段未提供该 API；请核对 stage、接口发布和服务版本。",
+			ExitCode:  output.ExitCodeSystemError,
+			RequestID: rid,
+		}
 	case code == "503" || status == 503:
 		return &Decision{
 			Code:      "retry_later",
@@ -388,11 +453,16 @@ func PrintFailure(cmd *cobra.Command, err error, details ...map[string]any) erro
 
 // Print writes a compact success envelope, or the dry-run request preview.
 func Print(cmd *cobra.Command, reply *Reply, data any) error {
-	return reply.Envelope(data).WriteJSON(cmd.OutOrStdout())
+	return output.WriteCommandEnvelope(cmd, reply.Envelope(data))
 }
 
 // Envelope returns the response or unchanged request preview for local decoration.
 func (r *Reply) Envelope(data any) *output.Envelope {
+	if r.envelope != nil {
+		env := *r.envelope
+		env.Data = data
+		return &env
+	}
 	if r.IsDryRun() {
 		return r.dryRun
 	}
@@ -403,7 +473,7 @@ func (r *Reply) Envelope(data any) *output.Envelope {
 	return env
 }
 
-// Window converts --since into the Unix-second strings Unified expects.
+// Window converts --since into the Unix-second API strings.
 func Window(since string, now time.Time) (string, string, error) {
 	duration, err := time.ParseDuration(since)
 	if err != nil || duration <= 0 || duration > maxWindow {
@@ -428,14 +498,14 @@ func RequireBiz(biz string) error {
 // Run resolves the shared runtime and prints Decisions as structured errors.
 func Run(
 	deps systemcmd.BuildDeps,
-	fn func(*cobra.Command, *syslib.Runtime) error,
+	fn func(*cobra.Command, *Runtime) error,
 ) func(*cobra.Command, []string) error {
 	return func(cmd *cobra.Command, _ []string) error {
 		rt, err := systemcmd.ResolveRuntime(deps)
 		if err != nil {
 			return err
 		}
-		return PrintFailure(cmd, fn(cmd, rt))
+		return PrintFailure(cmd, fn(cmd, Bind(cmd, rt)))
 	}
 }
 

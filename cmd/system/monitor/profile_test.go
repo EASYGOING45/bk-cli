@@ -255,16 +255,15 @@ var _ = Describe("SRE profiles", func() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer GinkgoRecover()
 			calls = append(calls, facade(r.URL.Path))
-			var req map[string]any
-			Expect(json.NewDecoder(r.Body).Decode(&req)).To(Succeed())
+			req := readMonitorRequest(r)
 			Expect(
-				req["tool_args"],
+				req,
 			).To(
 				Equal(map[string]any{"bk_biz_id": "100100", "index_set_id": float64(101003)}),
 			)
 			_, _ = w.Write(
 				[]byte(
-					`{"result":true,"data":{"status":"success","tool_name":"get_index_set_fields","data":{"fields":[]}}}`,
+					`{"result":true,"data":{"fields":[]}}`,
 				),
 			)
 		}))
@@ -274,7 +273,7 @@ var _ = Describe("SRE profiles", func() {
 		setFlags(cmd, "profile", "worker", "profile_file", file)
 		env, err := runProfileCommand(cmd)
 		Expect(err).NotTo(HaveOccurred())
-		Expect(calls).To(Equal([]string{"execute_tool"}))
+		Expect(calls).To(Equal([]string{"get_index_set_fields"}))
 		Expect(env["data"]).To(Equal(map[string]any{"fields": []any{}}))
 		Expect(env["profile"].(map[string]any)["applied_fields"]).To(Equal([]any{"bk_biz_id", "index_set_id"}))
 	})
@@ -319,11 +318,15 @@ var _ = Describe("SRE profiles", func() {
 		calls := []string{}
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer GinkgoRecover()
-			var req map[string]any
-			Expect(json.NewDecoder(r.Body).Decode(&req)).To(Succeed())
+			req := readMonitorRequest(r)
 			name, _ := req["tool_name"].(string)
 			op := facade(r.URL.Path)
-			calls = append(calls, op+":"+name)
+			if name == "" {
+				name = op
+				calls = append(calls, op)
+			} else {
+				calls = append(calls, op+":"+name)
+			}
 			data := map[string]any{}
 			switch op {
 			case "lookup_tool":
@@ -338,7 +341,7 @@ var _ = Describe("SRE profiles", func() {
 			case "lookup_permissions":
 				data["authorized"] = true
 				data["scopes"] = []any{map[string]any{"tool_name": name, "state": "granted"}}
-			case "execute_tool":
+			case "get_index_set_fields", "list_time_series_metrics", "list_apm_services":
 				Expect(
 					name,
 				).To(
@@ -352,7 +355,7 @@ var _ = Describe("SRE profiles", func() {
 					_, _ = w.Write([]byte(`{"result":false,"message":"table does not exist"}`))
 					return
 				}
-				data = map[string]any{"status": "success", "tool_name": name, "data": map[string]any{}}
+				data = map[string]any{}
 			}
 			Expect(json.NewEncoder(w).Encode(map[string]any{"result": true, "data": data})).To(Succeed())
 		}))
@@ -364,8 +367,8 @@ var _ = Describe("SRE profiles", func() {
 		Expect(err.(*output.CLIError).ExitCode).To(Equal(1))
 		encoded, _ := json.Marshal(env)
 		Expect(string(encoded)).To(ContainSubstring("resource_not_found"))
-		Expect(calls).To(ContainElement("execute_tool:list_time_series_metrics"))
-		Expect(calls).NotTo(ContainElement("execute_tool:search_logs"))
+		Expect(calls).To(ContainElement("list_time_series_metrics"))
+		Expect(calls).NotTo(ContainElement("search_logs"))
 	})
 
 	It("reports catalog drift as a warning, not proof that authentication failed", func() {

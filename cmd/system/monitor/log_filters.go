@@ -28,7 +28,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 var logFilterFieldPattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_.-]*$`)
@@ -37,7 +37,7 @@ func validateLogFilters(filters map[string]string) error {
 	for key, value := range filters {
 		if !logFilterFieldPattern.MatchString(key) || strings.TrimSpace(value) == "" ||
 			strings.ContainsFunc(value, unicode.IsControl) || strings.ContainsAny(value, "\u2028\u2029") {
-			return unifiedmcp.InputError("invalid_log_filter", "日志过滤需要合法字段名和非空单行值；复杂表达式用 --query_string。")
+			return monitorapi.InputError("invalid_log_filter", "日志过滤需要合法字段名和非空单行值；复杂表达式用 --query_string。")
 		}
 	}
 	return nil
@@ -55,7 +55,7 @@ func applyLogFilters(cmd *cobra.Command, args map[string]any) error {
 	for _, raw := range flags {
 		key, value, ok := strings.Cut(raw, "=")
 		if !ok {
-			return unifiedmcp.InputError("invalid_log_filter", "--filter 使用 FIELD=VALUE，可重复。")
+			return monitorapi.InputError("invalid_log_filter", "--filter 使用 FIELD=VALUE，可重复。")
 		}
 		filters[strings.TrimSpace(key)] = value
 	}
@@ -83,7 +83,7 @@ func applyLogFilters(cmd *cobra.Command, args map[string]any) error {
 		var ok bool
 		query, ok = value.(string)
 		if !ok {
-			return unifiedmcp.InputError("invalid_query_string", "query_string 必须是字符串。")
+			return monitorapi.InputError("invalid_query_string", "query_string 必须是字符串。")
 		}
 	}
 	if strings.TrimSpace(query) != "" && query != "*" {

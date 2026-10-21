@@ -23,9 +23,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
-	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -78,13 +77,20 @@ func newProfileListCmd() *cobra.Command {
 					},
 				)
 			}
-			return output.SuccessData(
-				map[string]any{"version": file.Version, "file": path, "sha256": hash, "profiles": rows},
-			).WriteJSON(
-				cmd.OutOrStdout(),
+			return output.WriteCommandEnvelope(
+				cmd,
+				output.SuccessData(
+					map[string]any{
+						"version":  file.Version,
+						"file":     path,
+						"sha256":   hash,
+						"profiles": rows,
+					},
+				),
 			)
 		},
 	}
+	output.AddJQFlag(cmd)
 	cmd.Flags().String("profile_file", "", "Profiles YAML file (or BK_CLI_MONITOR_PROFILE_FILE)")
 	return cmd
 }
@@ -104,7 +110,7 @@ func newProfileShowCmd(deps systemcmd.BuildDeps) *cobra.Command {
 			if p == nil {
 				return printMonitorFailure(
 					cmd,
-					unifiedmcp.InputError("needs_profile", "请用 --profile 指定名称。"),
+					monitorapi.InputError("needs_profile", "请用 --profile 指定名称。"),
 				)
 			}
 			if p.Version == 2 {
@@ -126,13 +132,13 @@ This does not read log bodies or metric series. It is not a cached grant or vali
 of every query/filter; the server authorizes each real call again.`,
 		Example: "  bk-cli monitor profile check --profile game-prod",
 		Args:    cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
 			p := currentProfile(cmd)
 			if p == nil {
-				return unifiedmcp.InputError("needs_profile", "请用 --profile 指定名称。")
+				return monitorapi.InputError("needs_profile", "请用 --profile 指定名称。")
 			}
 			if rt.DryRun {
-				reply, err := unifiedmcp.Call(
+				reply, err := monitorapi.Call(
 					rt,
 					"lookup_tool",
 					map[string]any{
@@ -180,7 +186,7 @@ func profileProbeTools(p queryProfile) []string {
 	return names
 }
 
-func checkProfile(rt *syslib.Runtime, p *selectedProfile) ([]map[string]any, int) {
+func checkProfile(rt *monitorapi.Runtime, p *selectedProfile) ([]map[string]any, int) {
 	rows := []map[string]any{}
 	exit := 0
 	for _, name := range profileProbeTools(p.Profile) {
@@ -204,8 +210,8 @@ func checkProfile(rt *syslib.Runtime, p *selectedProfile) ([]map[string]any, int
 				metadataArgs := map[string]any{}
 				err = profileArgs(&copy, toolsByName[metadataTool], metadataArgs, "", nil)
 				if err == nil {
-					var reply *unifiedmcp.Reply
-					reply, err = unifiedmcp.Execute(rt, metadataTool, metadataArgs)
+					var reply *monitorapi.Reply
+					reply, err = monitorapi.Execute(rt, metadataTool, metadataArgs)
 					if err == nil {
 						rows = append(rows, map[string]any{
 							"tool":          name,
@@ -256,7 +262,7 @@ func writeDiagnostic(cmd *cobra.Command, data map[string]any, exit int) error {
 
 func diagnosticFailure(name string, err error) (map[string]any, int) {
 	row := map[string]any{"name": name, "status": "fail", "decision": "request_failed"}
-	var decision *unifiedmcp.Decision
+	var decision *monitorapi.Decision
 	if errors.As(err, &decision) {
 		row["decision"], row["message"] = decision.Code, decision.Message
 		row["request_id"], row["next"] = decision.RequestID, decision.Next

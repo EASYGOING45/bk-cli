@@ -25,7 +25,7 @@ import (
 	json "github.com/goccy/go-json"
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 var anchorFields = []string{"dtEventTimeStamp", "serverIp", "gseIndex", "iterationIndex", "path"}
@@ -44,7 +44,7 @@ func applyContextAnchor(cmd *cobra.Command, args map[string]any) error {
 		raw, err = readFileLimited(strings.TrimPrefix(source, "@"))
 	}
 	if err != nil {
-		return unifiedmcp.InputError("invalid_from", "无法读取 --from，或内容超过 64 KiB。")
+		return monitorapi.InputError("invalid_from", "无法读取 --from，或内容超过 64 KiB。")
 	}
 	record, sourceIndex, provenance, err := firstRecord(raw)
 	if err != nil {
@@ -54,17 +54,17 @@ func applyContextAnchor(cmd *cobra.Command, args map[string]any) error {
 		return err
 	}
 	index, ok, err := sourceIndexID(record["__index_set_id__"], sourceIndex,
-		unifiedmcp.Map(provenance["resolved_parameters"])["index_set_id"])
+		monitorapi.Map(provenance["resolved_parameters"])["index_set_id"])
 	if err != nil {
 		return err
 	}
 	if args["index_set_id"] == nil {
 		if !ok || index <= 0 {
-			return unifiedmcp.InputError("needs_index_set", "记录里没有索引集 ID；请传 --index_set_id。")
+			return monitorapi.InputError("needs_index_set", "记录里没有索引集 ID；请传 --index_set_id。")
 		}
 		args["index_set_id"] = index
 	} else if ok && strconv.FormatInt(index, 10) != strings.TrimSpace(jsonText(args["index_set_id"])) {
-		return unifiedmcp.InputError("anchor_index_mismatch", "定位记录属于另一个索引集；不改写定位来源。")
+		return monitorapi.InputError("anchor_index_mismatch", "定位记录属于另一个索引集；不改写定位来源。")
 	}
 	for _, name := range anchorFields {
 		if args[name] != nil {
@@ -72,7 +72,7 @@ func applyContextAnchor(cmd *cobra.Command, args map[string]any) error {
 		}
 		value, present, err := anchorValue(record[name])
 		if err != nil {
-			return unifiedmcp.InputError("invalid_anchor", name+" 必须是原始字符串或精确整数。")
+			return monitorapi.InputError("invalid_anchor", name+" 必须是原始字符串或精确整数。")
 		}
 		if present {
 			args[name] = value
@@ -93,31 +93,31 @@ func applyContextAnchor(cmd *cobra.Command, args map[string]any) error {
 func firstRecord(raw []byte) (map[string]any, any, map[string]any, error) {
 	var value any
 	if err := decodeJSON(raw, &value); err != nil {
-		return nil, nil, nil, unifiedmcp.InputError("invalid_from", "--from 必须是单个完整 JSON。")
+		return nil, nil, nil, monitorapi.InputError("invalid_from", "--from 必须是单个完整 JSON。")
 	}
-	record := unifiedmcp.Map(value)
+	record := monitorapi.Map(value)
 	if record["ok"] == false || record["result"] == false {
-		return nil, nil, nil, unifiedmcp.InputError("invalid_from", "失败响应不能作为日志定位来源。")
+		return nil, nil, nil, monitorapi.InputError("invalid_from", "失败响应不能作为日志定位来源。")
 	}
 	if record["__demo_mock__"] == true {
-		return nil, nil, nil, unifiedmcp.InputError("mock_record", "模拟记录不能发往真实服务。")
+		return nil, nil, nil, monitorapi.InputError("mock_record", "模拟记录不能发往真实服务。")
 	}
-	provenance := unifiedmcp.Map(record["profile"])
+	provenance := monitorapi.Map(record["profile"])
 	if record["profile"] != nil && provenance == nil {
-		return nil, nil, nil, unifiedmcp.InputError("invalid_from", "定位来源的 Profile 信息不合法。")
+		return nil, nil, nil, monitorapi.InputError("invalid_from", "定位来源的 Profile 信息不合法。")
 	}
 	var sourceIndex any
-	if data := unifiedmcp.Map(record["data"]); data != nil {
+	if data := monitorapi.Map(record["data"]); data != nil {
 		sourceIndex = data["index_set_id"]
-		if rows := unifiedmcp.List(data["list"]); len(rows) > 0 {
-			record = unifiedmcp.Map(rows[0])
+		if rows := monitorapi.List(data["list"]); len(rows) > 0 {
+			record = monitorapi.Map(rows[0])
 		}
 	}
 	if record == nil || record["dtEventTimeStamp"] == nil {
-		return nil, nil, nil, unifiedmcp.InputError("invalid_from", "--from 需要 search_logs 的输出，或一条日志记录。")
+		return nil, nil, nil, monitorapi.InputError("invalid_from", "--from 需要 search_logs 的输出，或一条日志记录。")
 	}
 	if record["__demo_mock__"] == true {
-		return nil, nil, nil, unifiedmcp.InputError("mock_record", "模拟记录不能发往真实服务。")
+		return nil, nil, nil, monitorapi.InputError("mock_record", "模拟记录不能发往真实服务。")
 	}
 	return record, sourceIndex, provenance, nil
 }
@@ -128,14 +128,14 @@ func validateAnchorScope(cmd *cobra.Command, args, provenance map[string]any) er
 	} // Raw records have no verifiable local provenance; server still authorizes.
 	sourceContext, _ := provenance["context"].(string)
 	if sourceContext == "" || provenance["bk_biz_id"] == nil {
-		return unifiedmcp.InputError("invalid_from", "定位来源缺少 Profile 的 context 或业务信息。")
+		return monitorapi.InputError("invalid_from", "定位来源缺少 Profile 的 context 或业务信息。")
 	}
 	current, _ := cmd.Context().Value(runtimeContextKey{}).(string)
 	if sourceContext != current {
-		return unifiedmcp.InputError("anchor_context_mismatch", "定位记录来自另一个 context；不跨环境复用日志定位。")
+		return monitorapi.InputError("anchor_context_mismatch", "定位记录来自另一个 context；不跨环境复用日志定位。")
 	}
 	if jsonText(provenance["bk_biz_id"]) != jsonText(args["bk_biz_id"]) {
-		return unifiedmcp.InputError("anchor_business_mismatch", "定位记录来自另一个业务；不改写定位来源。")
+		return monitorapi.InputError("anchor_business_mismatch", "定位记录来自另一个业务；不改写定位来源。")
 	}
 	return nil
 }
@@ -149,10 +149,10 @@ func sourceIndexID(values ...any) (int64, bool, error) {
 		}
 		candidate, ok := exactInteger(value)
 		if !ok || candidate <= 0 {
-			return 0, false, unifiedmcp.InputError("invalid_anchor_index", "定位来源中的索引集 ID 必须是正整数。")
+			return 0, false, monitorapi.InputError("invalid_anchor_index", "定位来源中的索引集 ID 必须是正整数。")
 		}
 		if found && index != candidate {
-			return 0, false, unifiedmcp.InputError("anchor_index_mismatch", "定位记录与来源元数据的索引集 ID 不一致。")
+			return 0, false, monitorapi.InputError("anchor_index_mismatch", "定位记录与来源元数据的索引集 ID 不一致。")
 		}
 		index, found = candidate, true
 	}

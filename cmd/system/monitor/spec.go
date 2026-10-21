@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-// Package monitor implements user-mode BlueKing Monitor commands backed by Unified MCP.
+// Package monitor implements user-mode BlueKing Monitor commands backed by individual HTTP APIs.
 package monitor
 
 import (
@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -32,11 +32,16 @@ var catalogData, toolsByName, catalogErr = loadCatalog()
 
 func init() {
 	if catalogErr == nil {
-		unifiedmcp.SetCatalog(supportedTools(), commandName, nextCommands)
+		monitorapi.SetCatalog(supportedTools(), commandName, nextCommands)
+		routes := map[string]monitorapi.Endpoint{}
+		for _, item := range catalogData.Tools {
+			routes[item.Name] = item.Endpoint
+		}
+		monitorapi.SetEndpoints(routes)
 	}
 }
 
-// NewSystemSpec returns the monitor system spec grouped like upstream Unified MCP categories.
+// NewSystemSpec returns the monitor system spec grouped by observability module.
 func NewSystemSpec() systemcmd.SystemSpec {
 	if catalogErr != nil {
 		return systemcmd.SystemSpec{
@@ -105,7 +110,7 @@ func nextCommands(name, biz string) []string {
 	return commands
 }
 
-func printReply(cmd *cobra.Command, reply *unifiedmcp.Reply, err error) error {
+func printReply(cmd *cobra.Command, reply *monitorapi.Reply, err error) error {
 	if err != nil {
 		return err
 	}

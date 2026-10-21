@@ -125,7 +125,6 @@ npx skills add bk-cli/skills
 - `gse`
 - `devops`
 - `nodeman`
-- `monitor`
 
 不知道某个 system 能做什么时，先运行：
 
@@ -167,18 +166,18 @@ bk-cli context init \
 最常见的是“应用 + 用户令牌”方式：
 
 - bk_app_code/bk_app_secret: 在 蓝鲸开发者中心 应用设置 - 基本信息
-- bk_ticket/bk_token：按目标部署支持的认证方式选择。使用 Chrome 浏览器登录目标蓝鲸站点，在 F12-Application-Cookies 中查找对应的 `bk_ticket` 或 `bk_token`。详见 [auth login 如何获取 bk_ticket/bk_token?](faq.md#auth-login-如何获取-bk_ticketbk_token)。
+- bk_ticket(内部上云)/bk_token(其他环境): 使用 Chrome 浏览器，登录任意一个蓝鲸站点，F12-Application-Cookies，搜索 `bk_ticket` / `bk_token`  [auth login 如何获取 bk_ticket/bk_token?](faq.md#auth-login-如何获取-bk_ticketbk_token)
 
 ```
 # 凭据使用单引号包裹，避免 $、命令替换、双引号和反斜杠被 shell 解释
 
-# 使用 bk_ticket 的部署
+# 内部上云版网关
 bk-cli auth login \
   --bk_app_code='your_app' \
   --bk_app_secret='your_secret' \
   --bk_ticket='your_bk_ticket'
 
-# 使用 bk_token 的部署
+# 其他版本网关，例如 bk-dev/bkop/sg/bk2game 等
 
 bk-cli auth login \
   --bk_app_code='your_app' \
@@ -280,7 +279,7 @@ bk-cli api bk-demo POST /api/v2/resources/ \
 
 ```
 bk-cli apigateway list_gateways --name bk-iam --fuzzy
-bk-cli cmdb search_business --bk_biz_id '<业务ID>'
+bk-cli cmdb search_business --bk_biz_id 2
 bk-cli paas create_cloud_native_app -h --body-schema
 ```
 
@@ -444,7 +443,7 @@ system 子命令更适合“平台操作”，不需要你自己拼完整接口�
 bk-cli apigateway list_gateway_apis --gateway_name bk-iam
 
 bk-cli job fast_execute_script \
-  --bk_biz_id '<业务ID>' \
+  --bk_biz_id 2 \
   --script_content 'echo hello' \
   --target_server '{"host_id_list":[1]}'
 
@@ -475,57 +474,6 @@ bk-cli job --help
 bk-cli job fast_execute_script --help
 bk-cli paas create_cloud_native_app -h --body-schema
 ```
-
-### 观测平台：使用 SRE 提供的 Profile
-
-完整能力范围、快速开始和典型排查示例见 [监控与日志产品介绍](monitor.md)。
-
-Profile 固定业务、日志来源、指标表和 APM 应用；不保存登录凭据。先配置 Profile 引用的 context，并用自己的账号登录。
-
-```bash
-export BK_CLI_MONITOR_PROFILE_FILE=./team-profiles.yaml
-bk-cli monitor profile list
-bk-cli monitor profile show --profile checkout-prod
-bk-cli monitor status --profile checkout-prod
-bk-cli monitor log search_logs --profile checkout-prod --since 15m --query_string ERROR
-bk-cli monitor permission apply --profile checkout-prod --tool search_logs
-```
-
-Profile 名称来自 SRE 提供的文件；这里的 `checkout-prod` 是示例。用 `--profile_file` 可覆盖环境变量。环境、业务或日志模式冲突时 CLI 停止，不自动更换数据源。`status --offline` 只检查本地，`status --check_update` 可查询官方 GitHub 版本，不自动升级。
-
-文件格式、覆盖规则、限制与交付流程见 [Profile 使用与交付](../skills/bk-cli-monitor/references/profiles.md)。无 Profile 时仍可显式提供 `--bk_biz_id`、`--index_set_id` 等原始参数。
-
-复杂业务使用 V2：一个 Profile 对应业务环境，通过 `--component backend` 选择组件，再按命令所属 module 定位 binding；多个指标查询可用 `--binding traffic` 选择。每个 binding 独立引用 source，不要求日志、Trace、指标和策略位于同一个 context/业务。使用 `profile show` 检查定义；多个候选时 CLI 不猜测。
-
-```bash
-bk-cli monitor profile show --profile game-production --component backend
-bk-cli monitor log search_logs --profile game-production --component backend --since 15m
-bk-cli monitor metric execute_range_query --profile game-production --component backend --binding traffic --since 1h
-```
-
-上述为协议示例，具体名称来自你的 Profile。V2 模板见 [profiles-v2.yaml](../skills/bk-cli-monitor/references/profiles-v2.yaml)，V1 仍兼容。
-
-### 查询时间不只支持 since
-
-顶层时间字段支持可读日期时间、RFC3339、today/yesterday/now（今天/昨天/现在）和 Unix 整数。无偏移日期默认按 Asia/Shanghai 解释，可用 `--timezone UTC` 等 IANA 时区覆盖；显式偏移和时间戳不受它影响。
-
-```bash
-bk-cli monitor log search_logs --profile game-production --component worker \
-  --start_time 'yesterday 10:00' --end_time 'yesterday 11:00' --limit 3
-bk-cli monitor log search_logs --profile game-production --component worker \
-  --start_time '2026-10-13T14:00:00+08:00' --end_time '2026-10-13T15:00:00+08:00' --dry-run
-```
-
-裸时间戳按该工具原生单位，显式 `s/ms` 后缀可转换单位。SQL 和日志聚类用毫秒；其他顶层时间通常用秒；Profiling 的三个工具输出整数。since 不能和显式边界混用，包括 body。完整格式、精度、夏令时、关联查询和定位字段例外见 [查询时间](../skills/bk-cli-monitor/references/time-inputs.md)。
-
-CLI 输入与错误指引：
-
-- `--body`（内联、文件或 stdin）最大 64 KiB，必须是单个完整 JSON 对象；结构化命名参数保留大整数精度。
-- `--from` 不接受失败响应、模拟记录或相互矛盾的索引 ID。若保存的结果带有 Profile 来源，context 和业务也必须与本次请求一致；原始记录没有来源信息时不声称已验证跨环境一致性，仍由服务端鉴权。
-- `--where` / `log.where` 用于选表，如 `cluster_id`；`--filter` / `log.filters` 用于日志行字段，如 namespace。行过滤与查询词按 AND 组合，不改变数据源；返回字段可能带服务端高亮，不能把渲染标记当成资源名称。
-- 权限响应必须唯一匹配当前工具且结论一致，否则返回 `permission_response_invalid`，不误报 ready。
-- 关联查询逐项检查返回状态；HTTP 成功但子项失败时返回 `relation_query_failed`，不会当成完整成功。
-- 缺权后的申请指引保留本次实际资源 ID 和 context；资源元数据故障不会被指引去申请更多权限。
 
 ## 6. 这些参数很常用
 
@@ -604,7 +552,7 @@ raw API 和所有 system action 可以直接用 `--jq` 查询完整最终 envelo
 bk-cli apigateway list_gateways --jq '.data.items[] | .name'
 
 # 在 CMDB 完成所有分页后汇总主机 ID
-bk-cli cmdb list_biz_hosts_all --bk_biz_id '<业务ID>' --jq '.data.info | map(.bk_host_id)'
+bk-cli cmdb list_biz_hosts_all --bk_biz_id 2 --jq '.data.info | map(.bk_host_id)'
 
 # 对已脱敏预览查询 URL
 bk-cli api bk-demo GET /api/v2/foo/ --dry-run --jq '.request.url'

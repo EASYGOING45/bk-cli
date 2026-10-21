@@ -24,7 +24,7 @@ import (
 
 	json "github.com/goccy/go-json"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 )
 
 // Carry only permission resource identifiers, never query text, time windows or log bodies.
@@ -56,7 +56,7 @@ func permissionHint(contextName, action, name, biz string, values map[string]any
 }
 
 func preservePermissionTarget(err error, contextName, name, biz string, values map[string]any) error {
-	var decision *unifiedmcp.Decision
+	var decision *monitorapi.Decision
 	if errors.As(err, &decision) &&
 		(decision.Code == "permission_missing" || decision.Code == "permission_denied") {
 		decision.Next = []string{permissionHint(contextName, "apply", name, biz, values)}

@@ -31,7 +31,7 @@ import (
 	. "github.com/onsi/ginkgo/v2"
 	. "github.com/onsi/gomega"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	systemtest "github.com/TencentBlueKing/bk-cli/cmd/system/testutil"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
 )
@@ -90,11 +90,14 @@ var _ = Describe("monitor reliability boundaries", func() {
 			Expect(err).NotTo(HaveOccurred(), item.Name)
 			Expect(env["dry_run"]).To(BeTrue(), item.Name)
 			request := env["request"].(map[string]any)
-			body := request["body"].(map[string]any)
-			Expect(body["tool_name"]).To(Equal(item.Name))
+			body := previewArgs(env)
+			Expect(request["method"]).To(Equal(item.Endpoint.Method))
+			Expect(request["url"]).To(HaveSuffix(item.Endpoint.Path))
+			Expect(body).NotTo(HaveKey("tool_name"))
+			Expect(body).NotTo(HaveKey("tool_args"))
 			for _, p := range item.Params {
 				if p.Required {
-					Expect(body["tool_args"]).To(HaveKey(p.Name), item.Name)
+					Expect(body).To(HaveKey(p.Name), item.Name)
 				}
 			}
 		}
@@ -150,7 +153,7 @@ var _ = Describe("monitor reliability boundaries", func() {
 			Expect(strings.Join(next, " ")).NotTo(ContainSubstring("permission apply"))
 			Expect(strings.Join(next, " ")).NotTo(ContainSubstring("permission check"))
 		}
-		decision := unifiedmcp.InputError("permission_missing", "denied")
+		decision := monitorapi.InputError("permission_missing", "denied")
 		err := preservePermissionTarget(
 			decision,
 			"default",
@@ -189,7 +192,7 @@ var _ = Describe("monitor reliability boundaries", func() {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				_, _ = w.Write(
 					[]byte(
-						`{"result":true,"data":{"status":"success","tool_name":"find_relations","data":` + payload + `}}`,
+						`{"result":true,"data":` + payload + `}`,
 					),
 				)
 			}))

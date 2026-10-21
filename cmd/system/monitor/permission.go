@@ -24,9 +24,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
-	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -60,8 +59,8 @@ needed; it is neither denial nor grant. Use permission check for one resource.`,
 		Example: "  bk-cli monitor permission list --bk_biz_id <bk_biz_id>\n" +
 			"  bk-cli monitor permission list --bk_biz_id <bk_biz_id> --module log --missing_only",
 		Args: cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
-			if err := unifiedmcp.RequireBiz(biz); err != nil {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
+			if err := monitorapi.RequireBiz(biz); err != nil {
 				return err
 			}
 			names, err := moduleNames(moduleName)
@@ -71,7 +70,7 @@ needed; it is neither denial nor grant. Use permission check for one resource.`,
 			rows, summary := []map[string]any{}, map[string]int{}
 			for _, current := range names {
 				item := moduleByName(current)
-				reply, err := unifiedmcp.Call(rt, "lookup_tool", map[string]any{
+				reply, err := monitorapi.Call(rt, "lookup_tool", map[string]any{
 					"category":       item.Category,
 					"bk_biz_id":      biz,
 					"available_only": false,
@@ -83,8 +82,8 @@ needed; it is neither denial nor grant. Use permission check for one resource.`,
 				if reply.IsDryRun() {
 					return printReply(cmd, reply, nil)
 				}
-				for _, value := range unifiedmcp.List(unifiedmcp.Map(reply.Data)["tools"]) {
-					card := unifiedmcp.Map(value)
+				for _, value := range monitorapi.List(monitorapi.Map(reply.Data)["tools"]) {
+					card := monitorapi.Map(value)
 					name, _ := card["name"].(string)
 					if _, ok := toolsByName[name]; !ok {
 						continue
@@ -137,7 +136,7 @@ result is not a cached grant; the real command is authorized again by bk-monitor
 			"  bk-cli monitor permission check --bk_biz_id <bk_biz_id> --tool get_index_set_fields" +
 			" --body '{\"index_set_id\":123}'",
 		Args: cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
 			values, err := permissionTarget(cmd, biz, name, body)
 			if err != nil {
 				return err
@@ -167,9 +166,9 @@ the MCP permission or the native SaaS permission.`,
 		Example: "  bk-cli monitor permission apply --bk_biz_id <bk_biz_id> --tool list_alerts\n" +
 			"  bk-cli monitor permission apply --bk_biz_id <bk_biz_id> --module alert",
 		Args: cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
 			if (name == "") == (moduleName == "") {
-				return unifiedmcp.InputError("invalid_target", "--tool 与 --module 二选一。")
+				return monitorapi.InputError("invalid_target", "--tool 与 --module 二选一。")
 			}
 			if name != "" {
 				values, err := permissionTarget(cmd, biz, name, body)
@@ -179,7 +178,7 @@ the MCP permission or the native SaaS permission.`,
 				return applyTool(cmd, rt, biz, name, values)
 			}
 			if body != "" {
-				return unifiedmcp.InputError("body_needs_tool", "--body 只用于单个 --tool 的资源上下文。")
+				return monitorapi.InputError("body_needs_tool", "--body 只用于单个 --tool 的资源上下文。")
 			}
 			return applyModule(cmd, rt, biz, moduleName)
 		}),
@@ -190,14 +189,14 @@ the MCP permission or the native SaaS permission.`,
 	return cmd
 }
 
-func applyTool(cmd *cobra.Command, rt *syslib.Runtime, biz, name string, values map[string]any) error {
+func applyTool(cmd *cobra.Command, rt *monitorapi.Runtime, biz, name string, values map[string]any) error {
 	result, err := check(rt, biz, name, values)
 	if err == nil {
 		result["applications"] = []any{}
 		result["meaning"] = "服务端判定已有权限，无需申请。"
 		return writeMonitorEnvelope(cmd, &output.Envelope{OK: true, Data: result})
 	}
-	decision, ok := unifiedmcp.IsJudgment(err)
+	decision, ok := monitorapi.IsJudgment(err)
 	if !ok || decision.Code != "permission_missing" {
 		return err
 	}
@@ -211,23 +210,23 @@ func applyTool(cmd *cobra.Command, rt *syslib.Runtime, biz, name string, values 
 	}})
 }
 
-func applyModule(cmd *cobra.Command, rt *syslib.Runtime, biz, moduleName string) error {
-	if err := unifiedmcp.RequireBiz(biz); err != nil {
+func applyModule(cmd *cobra.Command, rt *monitorapi.Runtime, biz, moduleName string) error {
+	if err := monitorapi.RequireBiz(biz); err != nil {
 		return err
 	}
 	if _, err := moduleNames(moduleName); err != nil {
 		return err
 	}
 	item := moduleByName(moduleName)
-	reply, err := unifiedmcp.Call(rt, "lookup_tool", map[string]any{
+	reply, err := monitorapi.Call(rt, "lookup_tool", map[string]any{
 		"category": item.Category, "bk_biz_id": biz, "available_only": false, "page_size": 100,
 	})
 	if err != nil || reply.IsDryRun() {
 		return printReply(cmd, reply, err)
 	}
 	var missing, unresolved []string
-	for _, value := range unifiedmcp.List(unifiedmcp.Map(reply.Data)["tools"]) {
-		card := unifiedmcp.Map(value)
+	for _, value := range monitorapi.List(monitorapi.Map(reply.Data)["tools"]) {
+		card := monitorapi.Map(value)
 		name, _ := card["name"].(string)
 		if _, ok := toolsByName[name]; !ok {
 			continue
@@ -242,12 +241,12 @@ func applyModule(cmd *cobra.Command, rt *syslib.Runtime, biz, moduleName string)
 	sort.Strings(missing)
 	sort.Strings(unresolved)
 	if len(missing) > permissionQueryLimit {
-		return unifiedmcp.InputError("too_many_missing", "缺权工具超过 20 个；请缩小到单个 --tool。")
+		return monitorapi.InputError("too_many_missing", "缺权工具超过 20 个；请缩小到单个 --tool。")
 	}
 	applications := []any{}
 	for _, name := range missing {
 		_, err := check(rt, biz, name, map[string]any{})
-		if decision, ok := unifiedmcp.IsJudgment(err); ok && decision.Code == "permission_missing" {
+		if decision, ok := monitorapi.IsJudgment(err); ok && decision.Code == "permission_missing" {
 			applications = append(
 				applications,
 				map[string]any{
@@ -286,11 +285,11 @@ func permissionRow(name, state, biz, contextName string, p *selectedProfile) map
 }
 
 func permissionTarget(cmd *cobra.Command, biz, name, body string) (map[string]any, error) {
-	if err := unifiedmcp.RequireBiz(biz); err != nil {
+	if err := monitorapi.RequireBiz(biz); err != nil {
 		return nil, err
 	}
 	if _, ok := toolsByName[name]; !ok {
-		return nil, unifiedmcp.InputError(
+		return nil, monitorapi.InputError(
 			"invalid_tool",
 			"未知的只读工具；先运行 bk-cli monitor permission list --bk_biz_id "+biz+"。",
 		)
@@ -309,14 +308,14 @@ func permissionTarget(cmd *cobra.Command, biz, name, body string) (map[string]an
 		return nil, err
 	}
 	if value, exists := values["bk_biz_id"]; exists && jsonText(value) != biz {
-		return nil, unifiedmcp.InputError("conflicting_business", "--body 的业务与 --bk_biz_id 不一致。")
+		return nil, monitorapi.InputError("conflicting_business", "--body 的业务与 --bk_biz_id 不一致。")
 	}
 	return values, nil
 }
 
 func addPermissionTargetFlags(cmd *cobra.Command, biz, name, body *string) {
 	cmd.Flags().StringVar(biz, "bk_biz_id", "", "Business ID")
-	cmd.Flags().StringVar(name, "tool", "", "Unified MCP tool name")
+	cmd.Flags().StringVar(name, "tool", "", "Monitor API tool name")
 	cmd.Flags().StringVar(body, "body", "", "Resource fields as JSON, @file, or -; only permission fields are sent")
 }
 
@@ -329,7 +328,7 @@ func moduleNames(value string) ([]string, error) {
 		return names, nil
 	}
 	if moduleByName(value).Name == "" {
-		return nil, unifiedmcp.InputError("invalid_module", "--module 可选："+moduleChoices())
+		return nil, monitorapi.InputError("invalid_module", "--module 可选："+moduleChoices())
 	}
 	return []string{value}, nil
 }

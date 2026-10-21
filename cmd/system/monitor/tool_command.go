@@ -26,7 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
@@ -44,12 +44,12 @@ func newToolCmd(item tool, deps systemcmd.BuildDeps) *cobra.Command {
 		Long:    longHelp(item, hasWindow),
 		Example: example(item, hasWindow),
 		Args:    cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
 			args, err := toolArgs(cmd, item, body, since, hasWindow)
 			if err != nil {
 				return err
 			}
-			reply, err := unifiedmcp.Execute(rt, item.Name, args)
+			reply, err := monitorapi.Execute(rt, item.Name, args)
 			if err != nil {
 				return preservePermissionTarget(
 					err,
@@ -122,7 +122,7 @@ func addParamFlag(cmd *cobra.Command, p param) {
 }
 
 // toolArgs merges --body with named flags, converts only by the reviewed schema type, and leaves
-// all ownership and permission checks to Unified.
+// all ownership and permission checks to the server.
 func toolArgs(cmd *cobra.Command, item tool, body, since string, hasWindow bool) (map[string]any, error) {
 	args := map[string]any{}
 	if body != "" {
@@ -163,12 +163,12 @@ func toolArgs(cmd *cobra.Command, item tool, body, since string, hasWindow bool)
 		}
 	}
 	if len(missing) > 0 {
-		next := unifiedmcp.NextCommands(item.Name, fmt.Sprint(args["bk_biz_id"]))
+		next := monitorapi.NextCommands(item.Name, fmt.Sprint(args["bk_biz_id"]))
 		hint := "缺少必填参数：" + strings.Join(missing, ", ")
 		if hasWindow && (args["start_time"] == nil || args["end_time"] == nil) {
 			hint += "；时间可用 --since 15m"
 		}
-		return nil, unifiedmcp.InputError("missing_arguments", hint+"。", next...)
+		return nil, monitorapi.InputError("missing_arguments", hint+"。", next...)
 	}
 	recordProfileArgs(currentProfile(cmd), args)
 	return args, nil
@@ -186,7 +186,7 @@ func readBody(cmd *cobra.Command, body string) ([]byte, error) {
 		data = []byte(body)
 	}
 	if err != nil || len(data) == 0 || len(data) > maxInputBytes {
-		return nil, unifiedmcp.InputError("invalid_body", "无法读取 --body，或内容为空、超过 64 KiB。")
+		return nil, monitorapi.InputError("invalid_body", "无法读取 --body，或内容为空、超过 64 KiB。")
 	}
 	return data, nil
 }
@@ -216,11 +216,11 @@ func convertFlag(cmd *cobra.Command, p param) (any, error) {
 	if p.Type == "array" || p.Type == "object" {
 		var value any
 		if err := decodeJSON([]byte(raw), &value); err != nil {
-			return nil, unifiedmcp.InputError("invalid_json_flag", "--"+p.Name+" 必须是 JSON。")
+			return nil, monitorapi.InputError("invalid_json_flag", "--"+p.Name+" 必须是 JSON。")
 		}
-		if (p.Type == "array" && unifiedmcp.List(value) == nil) ||
-			(p.Type == "object" && unifiedmcp.Map(value) == nil) {
-			return nil, unifiedmcp.InputError("invalid_json_flag", "--"+p.Name+" 的 JSON 类型必须是 "+p.Type+"。")
+		if (p.Type == "array" && monitorapi.List(value) == nil) ||
+			(p.Type == "object" && monitorapi.Map(value) == nil) {
+			return nil, monitorapi.InputError("invalid_json_flag", "--"+p.Name+" 的 JSON 类型必须是 "+p.Type+"。")
 		}
 		return value, nil
 	}
@@ -232,19 +232,19 @@ func scalar(name, kind, raw string) (any, error) {
 	case "integer":
 		value, err := strconv.ParseInt(raw, 10, 64)
 		if err != nil {
-			return nil, unifiedmcp.InputError("invalid_integer", "--"+name+" 必须是整数。")
+			return nil, monitorapi.InputError("invalid_integer", "--"+name+" 必须是整数。")
 		}
 		return value, nil
 	case "number":
 		value, err := strconv.ParseFloat(raw, 64)
 		if err != nil {
-			return nil, unifiedmcp.InputError("invalid_number", "--"+name+" 必须是数字。")
+			return nil, monitorapi.InputError("invalid_number", "--"+name+" 必须是数字。")
 		}
 		return value, nil
 	case "boolean":
 		value, err := strconv.ParseBool(raw)
 		if err != nil {
-			return nil, unifiedmcp.InputError("invalid_boolean", "--"+name+" 只能是 true 或 false。")
+			return nil, monitorapi.InputError("invalid_boolean", "--"+name+" 只能是 true 或 false。")
 		}
 		return value, nil
 	default:
@@ -256,7 +256,7 @@ func longHelp(item tool, hasWindow bool) string {
 	lines := []string{
 		item.Short + ".",
 		"",
-		"Unified MCP tool: " + item.Name + " (" + item.Category + ").",
+		"Monitor API tool: " + item.Name + " (" + item.Category + ").",
 		"Each run is checked again by bk-monitor for identity, resource ownership and permission.",
 		"Use --profile NAME for SRE-provided resource bindings; inspect with monitor profile show --profile NAME.",
 	}

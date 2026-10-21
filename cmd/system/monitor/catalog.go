@@ -21,13 +21,16 @@ package monitor
 import (
 	_ "embed"
 	"fmt"
+	"net/http"
 	"sort"
+
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 
 	json "github.com/goccy/go-json"
 )
 
-// tools.json is a reviewed snapshot of Unified MCP read-only tools. Execution still fetches no local
-// authority from it: Unified validates arguments, resources and permissions on every request.
+// tools.json is a reviewed snapshot of Monitor read-only HTTP operations. Execution still fetches no local
+// authority from it: the server validates arguments, resources and permissions on every request.
 //
 //go:embed catalog/tools.json
 var catalogJSON []byte
@@ -40,14 +43,15 @@ type catalog struct {
 }
 
 type tool struct {
-	Module        string         `json:"module"`
-	Category      string         `json:"category"`
-	Name          string         `json:"name"`
-	Short         string         `json:"short"`
-	Capabilities  []string       `json:"capabilities"`
-	Prerequisites []string       `json:"prerequisites"`
-	Params        []param        `json:"params"`
-	Permission    permissionSpec `json:"permission"`
+	Endpoint      monitorapi.Endpoint `json:"endpoint"`
+	Module        string              `json:"module"`
+	Category      string              `json:"category"`
+	Name          string              `json:"name"`
+	Short         string              `json:"short"`
+	Capabilities  []string            `json:"capabilities"`
+	Prerequisites []string            `json:"prerequisites"`
+	Params        []param             `json:"params"`
+	Permission    permissionSpec      `json:"permission"`
 }
 
 // permissionSpec mirrors Unified MCP permission metadata. It explains which IAM actions are involved;
@@ -116,6 +120,11 @@ func loadCatalog() (*catalog, map[string]tool, error) {
 		known[item.Name] = struct{}{}
 	}
 	for _, item := range value.Tools {
+		if item.Endpoint.Path == "" ||
+			(item.Endpoint.Method != http.MethodGet && item.Endpoint.Method != http.MethodPost) ||
+			item.Endpoint.Path == "/mcp/execute_tool/" {
+			return nil, nil, fmt.Errorf("invalid API route for %q", item.Name)
+		}
 		if _, ok := known[item.Module]; !ok {
 			return nil, nil, fmt.Errorf("monitor tool %q has unknown module %q", item.Name, item.Module)
 		}

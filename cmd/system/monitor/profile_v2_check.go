@@ -24,10 +24,9 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/config"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
-	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 	"github.com/TencentBlueKing/bk-cli/internal/update"
 )
@@ -105,7 +104,7 @@ func v2Checks(p *selectedProfile) ([]bindingCheck, error) {
 		}
 	}
 	if len(result) > permissionQueryLimit {
-		return nil, unifiedmcp.InputError(
+		return nil, monitorapi.InputError(
 			"profile_check_too_large",
 			"预检超过 20 个工具；用 --component 或 --binding 缩小范围。",
 		)
@@ -118,7 +117,7 @@ func v2ToolValues(p *selectedProfile, toolName string) (map[string]any, error) {
 	return values, profileArgs(p, toolsByName[toolName], values, "", nil)
 }
 
-func checkV2Binding(rt *syslib.Runtime, p *selectedProfile, toolName string) (map[string]any, error) {
+func checkV2Binding(rt *monitorapi.Runtime, p *selectedProfile, toolName string) (map[string]any, error) {
 	values, err := v2ToolValues(p, toolName)
 	if err != nil {
 		return nil, err
@@ -129,7 +128,7 @@ func checkV2Binding(rt *syslib.Runtime, p *selectedProfile, toolName string) (ma
 	}
 	result["validation"] = "permission_only"
 	metadataTool := toolName
-	if p.Route.Module == "metric" && p.Route.Args["table_id"] != nil {
+	if p.Route.Module == "metric" && values["table_id"] != nil {
 		metadataTool = "list_time_series_metrics"
 	}
 	if !profileMetadataTools[metadataTool] {
@@ -143,12 +142,17 @@ func checkV2Binding(rt *syslib.Runtime, p *selectedProfile, toolName string) (ma
 	if err != nil {
 		return nil, err
 	}
+	for key := range bindingResourceArgs {
+		if value, ok := values[key]; ok && hasParam(toolsByName[metadataTool], key) {
+			metadataArgs[key] = value
+		}
+	}
 	for _, param := range toolsByName[metadataTool].Params {
 		if param.Required && metadataArgs[param.Name] == nil {
 			return result, nil
 		}
 	}
-	reply, err := unifiedmcp.Execute(rt, metadataTool, metadataArgs)
+	reply, err := monitorapi.Execute(rt, metadataTool, metadataArgs)
 	if err != nil {
 		return nil, err
 	}
@@ -157,10 +161,11 @@ func checkV2Binding(rt *syslib.Runtime, p *selectedProfile, toolName string) (ma
 }
 
 func v2SourceRuntime(
+	cmd *cobra.Command,
 	deps systemcmd.BuildDeps,
 	source profileSource,
 	offline bool,
-) (*syslib.Runtime, map[string]any, int) {
+) (*monitorapi.Runtime, map[string]any, int) {
 	row := map[string]any{"context": source.Context, "bk_biz_id": source.BizID}
 	if deps.GetContext != nil && deps.GetContext() != "" && deps.GetContext() != source.Context {
 		row["status"], row["decision"] = "fail", "profile_context_mismatch"
@@ -187,20 +192,21 @@ func v2SourceRuntime(
 		row["status"] = "fail"
 		return nil, row, code
 	}
-	reply, err := unifiedmcp.Call(rt, "lookup_tool_schema", map[string]any{"tool_name": "search_spaces"})
+	bound := monitorapi.Bind(cmd, rt)
+	reply, err := monitorapi.Call(bound, "lookup_tool_schema", map[string]any{"tool_name": "search_spaces"})
 	if err != nil {
 		failure, code := diagnosticFailure(source.Context, err)
 		row["failure"] = failure
 		row["status"] = "fail"
 		return nil, row, code
 	}
-	remote, _ := unifiedmcp.Map(reply.Data)["catalog_version"].(string)
+	remote, _ := monitorapi.Map(reply.Data)["catalog_version"].(string)
 	row["status"], row["authentication"], row["request_id"] = "pass", "verified", reply.RequestID
 	row["catalog_local"], row["catalog_remote"] = catalogData.Version, remote
 	if remote != catalogData.Version {
 		row["status"] = "warn"
 	}
-	return rt, row, 0
+	return bound, row, 0
 }
 
 func runV2Report(
@@ -246,7 +252,7 @@ func runV2Report(
 	}
 	rows := []map[string]any{}
 	sources := map[string]any{}
-	runtimes := map[string]*syslib.Runtime{}
+	runtimes := map[string]*monitorapi.Runtime{}
 	exit := 0
 	// Resolve/verify each declared source once per invocation, never persist grants or switch the active context.
 	for _, item := range checks {
@@ -254,7 +260,7 @@ func runV2Report(
 		if _, seen := sources[b.Source]; seen {
 			continue
 		}
-		rt, row, code := v2SourceRuntime(deps, p.FileSpec.Sources[b.Source], offline)
+		rt, row, code := v2SourceRuntime(cmd, deps, p.FileSpec.Sources[b.Source], offline)
 		sources[b.Source] = row
 		runtimes[b.Source] = rt
 		if code > exit {

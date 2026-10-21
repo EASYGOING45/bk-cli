@@ -24,7 +24,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -64,14 +64,14 @@ func selectV2Profile(cmd *cobra.Command, p *selectedProfile) error {
 		if profileInspection(cmd) && binding == "" {
 			return nil
 		}
-		return unifiedmcp.InputError(
+		return monitorapi.InputError(
 			"needs_component",
 			"请用 --component 选择业务组件："+strings.Join(sortedKeys(p.Definition.Components), ", "),
 		)
 	}
 	c, ok := p.Definition.Components[component]
 	if !ok {
-		return unifiedmcp.InputError("component_not_found", "Profile 中不存在该 component。")
+		return monitorapi.InputError("component_not_found", "Profile 中不存在该 component。")
 	}
 	p.Component = component
 	module, toolName := requestedProfileModule(cmd)
@@ -86,10 +86,10 @@ func selectV2Profile(cmd *cobra.Command, p *selectedProfile) error {
 			}
 		}
 		if len(candidates) == 0 {
-			return unifiedmcp.InputError("profile_binding_missing", "该组件没有此 module 的绑定；不会回退到其他组件或当前默认环境。")
+			return monitorapi.InputError("profile_binding_missing", "该组件没有此 module 的绑定；不会回退到其他组件或当前默认环境。")
 		}
 		if len(candidates) != 1 {
-			return unifiedmcp.InputError(
+			return monitorapi.InputError(
 				"needs_binding",
 				"请用 --binding 明确选择："+strings.Join(candidates, ", "),
 			)
@@ -98,10 +98,10 @@ func selectV2Profile(cmd *cobra.Command, p *selectedProfile) error {
 	}
 	b, ok := c.Bindings[binding]
 	if !ok {
-		return unifiedmcp.InputError("binding_not_found", "该 component 中不存在此 binding。")
+		return monitorapi.InputError("binding_not_found", "该 component 中不存在此 binding。")
 	}
 	if module != "" && module != b.Module {
-		return unifiedmcp.InputError("profile_binding_mismatch", "binding.module 与当前命令不一致；不会切换到其他能力。")
+		return monitorapi.InputError("profile_binding_mismatch", "binding.module 与当前命令不一致；不会切换到其他能力。")
 	}
 	if err := activateBinding(p, component, binding, toolName); err != nil {
 		return err
@@ -141,14 +141,14 @@ func activateBinding(p *selectedProfile, component, binding, toolName string) er
 
 func bindProfileRuntime(cmd *cobra.Command, deps systemcmd.BuildDeps, p *selectedProfile) (systemcmd.BuildDeps, error) {
 	if deps.GetContext != nil && deps.GetContext() != "" && deps.GetContext() != p.Profile.Context {
-		return deps, unifiedmcp.InputError(
+		return deps, monitorapi.InputError(
 			"profile_context_mismatch",
 			"--context 与所选绑定的 context 不一致；不会跨环境复用资源 ID。",
 		)
 	}
 	if flag := cmd.Flags().Lookup("bk_biz_id"); flag != nil {
 		if flag.Changed && flag.Value.String() != p.Profile.BizID {
-			return deps, unifiedmcp.InputError("profile_business_mismatch", "--bk_biz_id 与所选绑定的数据来源业务不一致。")
+			return deps, monitorapi.InputError("profile_business_mismatch", "--bk_biz_id 与所选绑定的数据来源业务不一致。")
 		}
 		if !flag.Changed {
 			if err := flag.Value.Set(p.Profile.BizID); err != nil {

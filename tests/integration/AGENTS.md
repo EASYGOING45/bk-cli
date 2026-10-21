@@ -61,7 +61,7 @@ tests/integration/cases/system/<system>/
 Examples:
 
 - `tests/integration/cases/system/devops/`
-- `tests/integration/cases/system/monitor/` — profile cases use synthetic `fixtures/monitor-profiles.yaml`; never real credentials or live IDs
+- `tests/integration/cases/system/monitor/` — profile cases use synthetic `fixtures/monitor-profiles.yaml`; never real credentials or live IDs; direct-route cases must assert the individual HTTP path, and preflight cases must not execute business queries
 - `tests/integration/cases/system/apigateway/`
 
 If you add a new public system command to `cmd/system/<system>/`, add

@@ -16,7 +16,7 @@
  * to the current version of the project delivered to anyone in the future.
  */
 
-package unifiedmcp
+package monitorapi
 
 import (
 	"testing"
@@ -25,7 +25,7 @@ import (
 	. "github.com/onsi/gomega"
 )
 
-func TestUnifiedMCP(t *testing.T) {
+func TestMonitorAPI(t *testing.T) {
 	RegisterFailHandler(Fail)
-	RunSpecs(t, "Unified MCP Suite")
+	RunSpecs(t, "Monitor HTTP API Suite")
 }

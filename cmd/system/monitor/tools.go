@@ -21,9 +21,8 @@ package monitor
 import (
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/output"
-	syslib "github.com/TencentBlueKing/bk-cli/internal/system"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 )
 
@@ -43,7 +42,7 @@ func newSearchToolsCmd(deps systemcmd.BuildDeps) *cobra.Command {
 	var availableOnly bool
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Search Unified MCP tools for one business",
+		Short: "Search Monitor API tools for one business",
 		Long: `Search tools for one business.
 
 permission_state=requires_resource means a concrete resource is still needed.
@@ -51,8 +50,8 @@ It is neither denial nor grant. Use monitor permission check after choosing the 
 		Example: "  bk-cli monitor tools search --bk_biz_id <bk_biz_id> --category log\n" +
 			"  bk-cli monitor tools search --bk_biz_id <bk_biz_id> --capability query",
 		Args: cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
-			if err := unifiedmcp.RequireBiz(biz); err != nil {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
+			if err := monitorapi.RequireBiz(biz); err != nil {
 				return err
 			}
 			body := map[string]any{"bk_biz_id": biz, "available_only": availableOnly, "page_size": 100}
@@ -62,13 +61,13 @@ It is neither denial nor grant. Use monitor permission check after choosing the 
 			if capability != "" {
 				body["capability"] = capability
 			}
-			reply, err := unifiedmcp.Call(rt, "lookup_tool", body)
+			reply, err := monitorapi.Call(rt, "lookup_tool", body)
 			if err != nil || reply.IsDryRun() {
 				return printReply(cmd, reply, err)
 			}
-			data := unifiedmcp.Map(reply.Data)
-			for _, item := range unifiedmcp.List(data["tools"]) {
-				card := unifiedmcp.Map(item)
+			data := monitorapi.Map(reply.Data)
+			for _, item := range monitorapi.List(data["tools"]) {
+				card := monitorapi.Map(item)
 				if command := commandForTool(card); command != "" {
 					card["command"] = command
 				}
@@ -78,7 +77,7 @@ It is neither denial nor grant. Use monitor permission check after choosing the 
 	}
 	addProfileFlags(cmd)
 	cmd.Flags().StringVar(&biz, "bk_biz_id", "", "Business ID")
-	cmd.Flags().StringVar(&category, "category", "", "CLI module or Unified category, such as log or alert")
+	cmd.Flags().StringVar(&category, "category", "", "CLI module or API category, such as log or alert")
 	cmd.Flags().StringVar(
 		&capability,
 		"capability",
@@ -101,26 +100,26 @@ func newSchemaCmd(deps systemcmd.BuildDeps, byName map[string]tool) *cobra.Comma
 		Short:   "Show the current server contract for one tool",
 		Example: "  bk-cli monitor tools schema --tool search_logs",
 		Args:    cobra.NoArgs,
-		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *syslib.Runtime) error {
+		RunE: runMonitor(deps, func(cmd *cobra.Command, rt *monitorapi.Runtime) error {
 			if _, ok := byName[name]; !ok {
-				return unifiedmcp.InputError(
+				return monitorapi.InputError(
 					"invalid_tool",
 					"未知的只读工具；先运行 bk-cli monitor tools search --bk_biz_id <bk_biz_id>。",
 				)
 			}
-			reply, err := unifiedmcp.Call(rt, "lookup_tool_schema", map[string]any{"tool_name": name})
+			reply, err := monitorapi.Call(rt, "lookup_tool_schema", map[string]any{"tool_name": name})
 			return printReply(cmd, reply, err)
 		}),
 	}
 	addProfileFlags(cmd)
-	cmd.Flags().StringVar(&name, "tool", "", "Unified MCP tool name")
+	cmd.Flags().StringVar(&name, "tool", "", "Monitor API tool name")
 	return cmd
 }
 
 // check runs the Unified Tool Search decision chain without executing the data tool.
-func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[string]any, error) {
+func check(rt *monitorapi.Runtime, biz, name string, values map[string]any) (map[string]any, error) {
 	var steps []map[string]any
-	catalog, err := unifiedmcp.Call(
+	catalog, err := monitorapi.Call(
 		rt,
 		"lookup_tool",
 		map[string]any{"tool_name": name, "bk_biz_id": biz, "available_only": false},
@@ -129,18 +128,18 @@ func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[str
 		return nil, err
 	}
 	if catalog.IsDryRun() {
-		return nil, unifiedmcp.InputError(
+		return nil, monitorapi.InputError(
 			"dry_run_not_supported",
 			"permission check/apply 需要真实服务端判定，不支持 --dry-run。",
 		)
 	}
-	cards := unifiedmcp.List(unifiedmcp.Map(catalog.Data)["tools"])
+	cards := monitorapi.List(monitorapi.Map(catalog.Data)["tools"])
 	var card map[string]any
 	if len(cards) > 0 {
-		card = unifiedmcp.Map(cards[0])
+		card = monitorapi.Map(cards[0])
 	}
 	if card["name"] != name {
-		return nil, &unifiedmcp.Decision{
+		return nil, &monitorapi.Decision{
 			Code:      "catalog_mismatch",
 			Message:   "工具目录没有返回该精确工具。",
 			ExitCode:  output.ExitCodeSystemError,
@@ -148,7 +147,7 @@ func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[str
 		}
 	}
 	if card["risk"] != "query" || card["requires_confirmation"] != false {
-		return nil, &unifiedmcp.Decision{
+		return nil, &monitorapi.Decision{
 			Code:      "readonly_contract_changed",
 			Message:   "服务端工具不再是只读契约，已停止。",
 			ExitCode:  output.ExitCodeSystemError,
@@ -159,13 +158,13 @@ func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[str
 		"step": "tool_search", "request_id": catalog.RequestID, "permission_state": card["permission_state"],
 		"required_context": card["required_context"], "prerequisites": card["prerequisites"],
 	})
-	schema, err := unifiedmcp.Call(rt, "lookup_tool_schema", map[string]any{"tool_name": name})
+	schema, err := monitorapi.Call(rt, "lookup_tool_schema", map[string]any{"tool_name": name})
 	if err != nil {
 		return nil, err
 	}
-	contract := unifiedmcp.Map(schema.Data)
-	context, unused := unifiedmcp.ResourceContext(contract, values)
-	permission := unifiedmcp.Map(contract["permission"])
+	contract := monitorapi.Map(schema.Data)
+	context, unused := monitorapi.ResourceContext(contract, values)
+	permission := monitorapi.Map(contract["permission"])
 	steps = append(steps, map[string]any{
 		"step":            "contract",
 		"request_id":      schema.RequestID,
@@ -184,7 +183,7 @@ func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[str
 	}
 	steps = append(steps, step)
 	if decision != nil {
-		if unifiedmcp.IsResourceDecision(decision.Code) {
+		if monitorapi.IsResourceDecision(decision.Code) {
 			decision.Next = nextCommands(name, biz)
 		}
 		decision.Steps = steps
@@ -198,13 +197,13 @@ func check(rt *syslib.Runtime, biz, name string, values map[string]any) (map[str
 }
 
 func permissionDecision(
-	rt *syslib.Runtime,
+	rt *monitorapi.Runtime,
 	name string,
 	body, context map[string]any,
-) (*unifiedmcp.Decision, map[string]any, error) {
-	reply, err := unifiedmcp.Call(rt, "lookup_permissions", body)
+) (*monitorapi.Decision, map[string]any, error) {
+	reply, err := monitorapi.Call(rt, "lookup_permissions", body)
 	if err != nil {
-		judgment, ok := unifiedmcp.IsJudgment(err)
+		judgment, ok := monitorapi.IsJudgment(err)
 		if !ok {
 			return nil, nil, err
 		}
@@ -215,11 +214,11 @@ func permissionDecision(
 			"decision":         judgment.Code,
 		}, nil
 	}
-	data := unifiedmcp.Map(reply.Data)
+	data := monitorapi.Map(reply.Data)
 	var state map[string]any
 	matches := 0
-	for _, item := range unifiedmcp.List(data["scopes"]) {
-		if scope := unifiedmcp.Map(item); scope["tool_name"] == name {
+	for _, item := range monitorapi.List(data["scopes"]) {
+		if scope := monitorapi.Map(item); scope["tool_name"] == name {
 			state = scope
 			matches++
 		}
@@ -228,7 +227,7 @@ func permissionDecision(
 	granted := state["state"] == "granted" || state["state"] == "exempt"
 	if matches != 1 || !hasAuthorization || authorized != granted ||
 		(state["authorized"] != nil && state["authorized"] != authorized) {
-		return nil, nil, &unifiedmcp.Decision{
+		return nil, nil, &monitorapi.Decision{
 			Code: "permission_response_invalid", Message: "权限响应没有唯一匹配当前工具，或授权结论互相矛盾；已停止。",
 			ExitCode: output.ExitCodeSystemError, RequestID: reply.RequestID,
 		}
@@ -240,9 +239,9 @@ func permissionDecision(
 	if authorized {
 		return nil, step, nil
 	}
-	decision := unifiedmcp.StateDecision(state)
+	decision := monitorapi.StateDecision(state)
 	if decision == nil {
-		decision = unifiedmcp.StateDecision(map[string]any{})
+		decision = monitorapi.StateDecision(map[string]any{})
 	}
 	decision.RequestID = reply.RequestID
 	return decision, step, nil

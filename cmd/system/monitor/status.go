@@ -26,7 +26,7 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/unifiedmcp"
+	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
 	"github.com/TencentBlueKing/bk-cli/internal/config"
 	systemcmd "github.com/TencentBlueKing/bk-cli/internal/systemcmd"
 	"github.com/TencentBlueKing/bk-cli/internal/update"
@@ -74,7 +74,7 @@ No log, alert or metric payload is read. --offline and --dry-run never use the n
 			if err != nil || cfg == nil {
 				fail(
 					"context",
-					unifiedmcp.InputError(
+					monitorapi.InputError(
 						"config_error",
 						"context 不存在或不可读；先运行 bk-cli context list。",
 					),
@@ -87,7 +87,7 @@ No log, alert or metric payload is read. --offline and --dry-run never use the n
 				if _, err := os.Stat(config.CredentialsPath(selected)); err != nil {
 					fail(
 						"credential_file",
-						unifiedmcp.InputError(
+						monitorapi.InputError(
 							"auth_required",
 							"没有可读凭据文件；请在该 context 下运行 bk-cli auth login。",
 						),
@@ -110,7 +110,8 @@ No log, alert or metric payload is read. --offline and --dry-run never use the n
 				if err != nil {
 					fail("runtime", err)
 				} else {
-					reply, err := unifiedmcp.Call(
+					rt := monitorapi.Bind(cmd, rt)
+					reply, err := monitorapi.Call(
 						rt,
 						"lookup_tool_schema",
 						map[string]any{"tool_name": "search_spaces"},
@@ -118,7 +119,7 @@ No log, alert or metric payload is read. --offline and --dry-run never use the n
 					if err != nil {
 						fail("authenticated_api", err)
 					} else {
-						remote, _ := unifiedmcp.Map(reply.Data)["catalog_version"].(string)
+						remote, _ := monitorapi.Map(reply.Data)["catalog_version"].(string)
 						checks = append(
 							checks,
 							map[string]any{

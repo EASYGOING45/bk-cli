@@ -16,6 +16,8 @@
 
 from __future__ import annotations
 
+import json
+
 from typing import Any
 
 from flask import Flask, jsonify, request
@@ -236,6 +238,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if negative is not None:
             return negative
 
+        if gateway == "bk-monitor" and active_scenario() == "MONITOR-012":
+            if stage != "testing" or request.headers.get("X-Example") != "preflight":
+                return jsonify({"result": False, "message": "preflight request options missing"}), 403
+
         if gateway == "bk-monitor" and tail == "mcp/lookup_tool/":
             payload = request_body() or {}
             return jsonify(
@@ -314,30 +320,31 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
                 }
             )
 
-        if gateway == "bk-monitor" and tail == "mcp/execute_tool/":
-            payload = request_body() or {}
-            tool_name = payload.get("tool_name")
+        if gateway == "bk-monitor" and tail.startswith("mcp/"):
+            tool_name = tail.removeprefix("mcp/").strip("/")
+            if tool_name == "execute_tool":
+                return jsonify({"result": False, "message": "generic dispatch is not supported"}), 404
+            args = request_body() or {}
+            if request.method == "GET":
+                args = dict(request.args)
+                for key, value in list(args.items()):
+                    if key != "bk_biz_id":
+                        try:
+                            args[key] = json.loads(value)
+                        except (TypeError, ValueError):
+                            pass
+            if active_scenario() == "MONITOR-012" and tool_name == "list_time_series_metrics":
+                if args.get("table_id") == "missing.table":
+                    return jsonify({"result": False, "message": "table does not exist"})
             if tool_name in ("find_relations", "find_relations_range"):
-                args = payload.get("tool_args") or {}
-                # Synthetic batch item failure for MONITOR-008, not a real business.
                 code = 400 if args.get("bk_biz_id") == "900008" else 200
                 items = [{"code": code, "target_list": []} for _ in args.get("query_list", [])]
-                return jsonify({"result": True, "data": {"status": "success", "tool_name": tool_name, "data": {"data": items}}})
-            return jsonify(
-                {
-                    "result": True,
-                    "data": {
-                        "status": "success",
-                        "tool_name": tool_name,
-                        "data": {
-                            "path": f"/{gateway}/{stage}/{tail}",
-                            "request_path": request.path,
-                            "tool_args": payload.get("tool_args"),
-                        },
-                        "meta": {"truncated": False},
-                    },
-                }
-            )
+                return jsonify({"result": True, "data": {"data": items}})
+            return jsonify({"result": True, "data": {
+                "path": f"/{gateway}/{stage}/{tail}", "request_path": request.path,
+                "tool_args": args,
+                "headers": {key: request.headers.get(key) for key in ("X-Example", "X-Bk-Tenant-Id")},
+            }})
 
         if gateway == "bk-cmdb" and tail == "api/v3/open/hosts/modules/read":
             return jsonify(

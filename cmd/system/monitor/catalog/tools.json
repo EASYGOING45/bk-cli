@@ -1,5 +1,5 @@
 {
-  "source": "bk-monitor Unified MCP read-only catalog",
+  "source": "bk-monitor reviewed read-only HTTP APIs and diagnostic metadata",
   "catalog_version": "7891fc8fb223",
   "tools": [
     {
@@ -60,6 +60,16 @@
           "action_id": "explore_metric_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/execute_range_query/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -133,6 +143,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/execute_sql_query/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -186,6 +206,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_time_series_groups/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -225,6 +255,19 @@
           "action_id": "explore_metric_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_time_series_metrics/",
+        "query_params": [
+          "table_id",
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -327,6 +370,16 @@
           "resource_type": "indices",
           "resource_arg": "index_set_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/analyze_field/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -366,6 +419,19 @@
           "action_id": "search_log_v2",
           "resource_type": "indices",
           "resource_arg": "index_set_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_index_set_fields/",
+        "query_params": [
+          "bk_biz_id",
+          "index_set_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -409,6 +475,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_scene_log_fields/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -441,6 +517,18 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_index_sets/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -472,6 +560,18 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_log_scenes/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -525,6 +625,16 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_scene_dimension_values/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -613,6 +723,16 @@
           "action_id": "search_log_v2",
           "resource_type": "indices",
           "resource_arg": "index_set_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_index_set_context/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -711,6 +831,16 @@
           "action_id": "search_log_v2",
           "resource_type": "indices",
           "resource_arg": "index_set_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_log_clustering_pattern/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -829,6 +959,16 @@
             "resource_arg": "bk_biz_id"
           }
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_logs/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -900,6 +1040,16 @@
           "action_id": "view_event_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alert_event_tag_detail/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -976,6 +1126,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alert_event_ts/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1042,6 +1202,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alert_events/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1083,6 +1253,19 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alert_host_target/",
+        "query_params": [
+          "bk_biz_id",
+          "alert_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1122,6 +1305,19 @@
           "action_id": "view_event_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alert_info/",
+        "query_params": [
+          "bk_biz_id",
+          "id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -1164,6 +1360,19 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alert_k8s_target/",
+        "query_params": [
+          "bk_biz_id",
+          "alert_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1204,6 +1413,19 @@
           "action_id": "view_event_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alert_log_relations/",
+        "query_params": [
+          "bk_biz_id",
+          "alert_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -1303,6 +1525,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alert_top_n/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1356,6 +1588,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alert_traces/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1396,6 +1638,19 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_strategy_detail/",
+        "query_params": [
+          "bk_biz_id",
+          "id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1435,6 +1690,16 @@
           "action_id": "view_event_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_strategy_snapshot/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -1544,6 +1809,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_alerts/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1637,6 +1912,16 @@
             "resource_arg": "app_name"
           }
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_event_view_config/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1686,6 +1971,16 @@
           "action_id": "explore_metric_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_events/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -1806,6 +2101,16 @@
             "resource_arg": "app_name"
           }
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_event_log/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1911,6 +2216,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/calculate_by_range/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1951,6 +2266,19 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_apm_filter_fields/",
+        "query_params": [
+          "bk_biz_id",
+          "app_name"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -1988,6 +2316,16 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_profile_application_service/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2055,6 +2393,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_profile_label/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2121,6 +2469,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_profile_type/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2166,6 +2524,16 @@
           "action_id": "view_apm_application_v2",
           "resource_type": "apm_application",
           "resource_arg": "app_name"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_span_detail/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2213,6 +2581,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_trace_detail/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2244,6 +2622,18 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_apm_applications/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2291,6 +2681,16 @@
           "action_id": "view_apm_application_v2",
           "resource_type": "apm_application",
           "resource_arg": "app_name"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_apm_services/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2402,6 +2802,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/query_graph_profile/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2489,6 +2899,16 @@
           "resource_type": "apm_application",
           "resource_arg": "app_name"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_spans/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2529,6 +2949,19 @@
           "resource_type": "grafana_dashboard",
           "resource_arg": "dashboard_uid"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_dashboard_detail_by_uid/",
+        "query_params": [
+          "bk_biz_id",
+          "dashboard_uid"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2560,6 +2993,18 @@
           "action_id": "view_dashboard_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_dashboard_tree_list/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2600,6 +3045,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/find_relations/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2638,6 +3093,16 @@
           "action_id": "explore_metric_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/find_relations_range/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2679,6 +3144,19 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alarm_action_config/",
+        "query_params": [
+          "bk_biz_id",
+          "id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2718,6 +3196,19 @@
           "action_id": "view_downtime_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_alarm_shield/",
+        "query_params": [
+          "bk_biz_id",
+          "id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2778,6 +3269,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_alarm_strategy/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2836,6 +3337,21 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/search_alarm_action_configs/",
+        "query_params": [
+          "bk_biz_id",
+          "page",
+          "page_size",
+          "order"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -2874,6 +3390,16 @@
           "action_id": "view_rule_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_alarm_assign_groups/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -2925,6 +3451,16 @@
           "action_id": "view_notify_team_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_alarm_notice_groups/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3023,6 +3559,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_alarm_shields/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3098,6 +3644,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_alarm_strategies/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3137,6 +3693,19 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_log_collector/",
+        "query_params": [
+          "bk_biz_id",
+          "collector_config_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3188,6 +3757,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/get_log_collector_status/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3227,6 +3806,19 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_log_index_set/",
+        "query_params": [
+          "bk_biz_id",
+          "index_set_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3332,6 +3924,25 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_log_collectors/",
+        "query_params": [
+          "bk_biz_id",
+          "page",
+          "page_size",
+          "keyword",
+          "collector_scenario_id",
+          "log_access_type",
+          "conditions",
+          "ordering"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3363,6 +3974,18 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_log_index_set_groups/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3418,6 +4041,21 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_result_tables/",
+        "query_params": [
+          "bk_biz_id",
+          "scenario_id",
+          "storage_cluster_id",
+          "result_table_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3449,6 +4087,18 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/list_third_party_es_clusters/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3506,6 +4156,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/preview_log_etl/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3545,6 +4205,19 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/get_log_extract_task/",
+        "query_params": [
+          "bk_biz_id",
+          "task_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3605,6 +4278,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_log_extract_allowed_paths/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3636,6 +4319,16 @@
           "action_id": "view_business_v2",
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
+        }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/list_log_extract_topology/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
         }
       }
     },
@@ -3696,6 +4389,16 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "POST",
+        "path": "/mcp/search_log_extract_hosts/",
+        "query_params": [],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3730,6 +4433,18 @@
           "resource_type": "space",
           "resource_arg": "bk_biz_id"
         }
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/search_bcs_clusters/",
+        "query_params": [
+          "bk_biz_id"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     },
     {
@@ -3763,6 +4478,20 @@
       ],
       "permission": {
         "mode": "exempt"
+      },
+      "endpoint": {
+        "method": "GET",
+        "path": "/mcp/search_spaces/",
+        "query_params": [
+          "space_name",
+          "page",
+          "page_size"
+        ],
+        "auth": {
+          "userVerifiedRequired": true,
+          "appVerifiedRequired": false,
+          "resourcePermissionRequired": true
+        }
       }
     }
   ],
