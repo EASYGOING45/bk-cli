@@ -336,6 +336,18 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             if active_scenario() == "MONITOR-012" and tool_name == "list_time_series_metrics":
                 if args.get("table_id") == "missing.table":
                     return jsonify({"result": False, "message": "table does not exist"})
+            if active_scenario() == "MONITOR-013":
+                if tool_name in ("list_alerts", "get_alert_top_n"):
+                    if args.get("bk_biz_ids") != [str(args.get("bk_biz_id"))]:
+                        return jsonify({"result": False, "message": "single-business array missing"}), 400
+                    if tool_name == "get_alert_top_n":
+                        return jsonify({"result": True, "data": {"scope": args["bk_biz_ids"]}})
+                    biz = "100200" if request.headers.get("X-Example") == "foreign-scope" else args["bk_biz_id"]
+                    return jsonify({"result": True, "data": {"alerts": [{"id": "sample-alert", "bk_biz_id": biz}], "total": 1}})
+                if tool_name == "get_alert_info":
+                    if args.get("id") == "missing-alert":
+                        return jsonify({"result": False, "code": 3324002, "message": "synthetic alert not found"})
+                    return jsonify({"result": True, "data": {"id": args["id"], "bk_biz_id": args["bk_biz_id"]}})
             if tool_name in ("find_relations", "find_relations_range"):
                 code = 400 if args.get("bk_biz_id") == "900008" else 200
                 items = [{"code": code, "target_list": []} for _ in args.get("query_list", [])]
@@ -343,6 +355,7 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             return jsonify({"result": True, "data": {
                 "path": f"/{gateway}/{stage}/{tail}", "request_path": request.path,
                 "tool_args": args,
+                **({"alerts": []} if tool_name == "list_alerts" else {}),
                 "headers": {key: request.headers.get(key) for key in ("X-Example", "X-Bk-Tenant-Id")},
             }})
 

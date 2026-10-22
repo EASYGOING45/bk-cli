@@ -86,6 +86,18 @@ var _ = Describe("Monitor API decisions", func() {
 			"resource_not_found",
 		),
 		Entry("unpublished API", 404, nil, "api_not_found"),
+		Entry(
+			"native missing alert",
+			200,
+			map[string]any{"code": 3324002, "message": "SECRET"},
+			"resource_not_found",
+		),
+		Entry(
+			"native missing event",
+			404,
+			map[string]any{"code": "3324002", "message": "SECRET"},
+			"resource_not_found",
+		),
 		Entry("IAM unavailable", 200, map[string]any{"code": 503, "message": "SECRET"}, "retry_later"),
 		Entry(
 			"structured denial",

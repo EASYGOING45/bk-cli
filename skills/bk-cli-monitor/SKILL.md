@@ -150,6 +150,8 @@ CLI 不会根据表名自动生成或改写 PromQL。需要固定查询口径时
 
 ### 3.3 告警：从告警详情继续查关联日志
 
+告警列表和 TopN 查询限定在最终选择的业务中。列表返回的告警必须属于同一业务；归属不一致或无法确认时，CLI 会拒绝输出结果。后续详情使用该业务列表返回的告警 ID，不根据返回内容自动切换业务。
+
 ```bash
 # 最近一小时仍处于异常状态的告警
 bk-cli monitor alert list_alerts \
@@ -279,7 +281,9 @@ CLI 会根据服务端结果说明缺少哪类权限，并返回可用的申请�
 | `resource_blocked` | 联系维护者核查资源元数据，不应反复申请更多权限 |
 | `profile_context_mismatch` / `profile_business_mismatch` | Profile 与显式范围冲突，确认配置后再查 |
 | `needs_component` / `needs_binding` | 用 `profile show` 查看配置，再明确选择 |
-| `api_not_found` | 核对 stage、接口发布和服务版本；不换身份、不回退通用执行门面 |
+| `response_scope_mismatch` | 列表业务归属与请求不一致或无法确认，核对 Profile、业务选择和服务端接口 |
+| `invalid_response` | 接口响应缺少约定结构，联系维护者核对接口契约 |
+| `api_not_found` | 核对 stage、网关前台路径、后端映射和服务路由/版本 |
 | `auth_failed` | 在对应数据来源更新登录状态；不通过换账号或换来源掩盖错误 |
 
 可用 `status` 检查当前状态，或先做离线检查：

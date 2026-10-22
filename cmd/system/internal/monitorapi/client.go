@@ -213,6 +213,10 @@ func Execute(rt *Runtime, tool string, args map[string]any) (*Reply, error) {
 	if !Supported(tool) || !found {
 		return nil, InputError("tool_not_allowed", "该工具没有经过审查的只读 API 路由。")
 	}
+	args, err := alertRequestArgs(tool, args)
+	if err != nil {
+		return nil, err
+	}
 	reply, err := request(rt, endpoint, args)
 	if err != nil {
 		var decision *Decision
@@ -250,6 +254,15 @@ func Execute(rt *Runtime, tool string, args map[string]any) (*Reply, error) {
 			return fail("partial_result", "上游只返回部分结果；请缩小查询范围。")
 		case tool == "execute_range_query" && payload["status"] == "error":
 			return fail("query_error", "指标查询引擎返回错误；检查 PromQL。")
+		}
+	}
+	if tool == "list_alerts" {
+		valid, scoped := alertListScopeValid(reply.Data, args["bk_biz_id"])
+		if !valid {
+			return fail("invalid_response", "告警查询没有返回有效的 alerts 列表；请核对接口契约。")
+		}
+		if !scoped {
+			return fail("response_scope_mismatch", "告警列表的业务归属与请求不一致或无法验证；结果未输出，请核对接口和所选业务。")
 		}
 	}
 	if tool == "find_relations" || tool == "find_relations_range" {
@@ -375,6 +388,13 @@ func classify(status int, body map[string]any, rid string) *Decision {
 			return decision
 		}
 	}
+	code := fmt.Sprint(body["code"])
+	if code == "3324002" {
+		return &Decision{
+			Code: "resource_not_found", Message: "指定业务下未找到该告警或事件；请从同一业务的列表重新选择。",
+			ExitCode: output.ExitCodeUserError, RequestID: rid,
+		}
+	}
 	raw, _ := json.Marshal(body)
 	text := strings.ToLower(string(raw))
 	for _, item := range rules {
@@ -389,12 +409,11 @@ func classify(status int, body map[string]any, rid string) *Decision {
 			}
 		}
 	}
-	code := fmt.Sprint(body["code"])
 	switch {
 	case status == http.StatusNotFound:
 		return &Decision{
 			Code:      "api_not_found",
-			Message:   "目标网关阶段未提供该 API；请核对 stage、接口发布和服务版本。",
+			Message:   "请求路径返回 404；请核对 stage、网关前台路径、后端映射和服务路由/版本。",
 			ExitCode:  output.ExitCodeSystemError,
 			RequestID: rid,
 		}
