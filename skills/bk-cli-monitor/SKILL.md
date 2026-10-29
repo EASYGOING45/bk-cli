@@ -271,6 +271,8 @@ bk-cli monitor permission apply --bk_biz_id '<业务ID>' --tool search_logs \
 
 CLI 会根据服务端结果说明缺少哪类权限，并返回可用的申请链接。用户自行打开链接申请；预检通过和取得链接都不等于已获得授权。具体工具支持的 MCP 权限与原生权限路径以其帮助和服务端契约为准。
 
+旧版业务权限 API 可能只返回 `authorized`，没有 `state`。CLI 仅在服务端 Schema 明确为旧版业务权限、工具唯一、Action 与业务匹配且授权结论一致时兼容；冲突响应仍拒绝。SQL 使用 BkBase 结果表，可从同业务 `collect list_result_tables --scenario_id bkdata` 发现，不应将时序分组表当作 BkBase 表；预检通过不代表查询或平台表归属校验已通过。
+
 ### 根据错误类型处理，而不是盲目重试
 
 | 提示 | 应当怎么做 |
@@ -284,6 +286,10 @@ CLI 会根据服务端结果说明缺少哪类权限，并返回可用的申请�
 | `response_scope_mismatch` | 列表业务归属与请求不一致或无法确认，核对 Profile、业务选择和服务端接口 |
 | `invalid_response` | 接口响应缺少约定结构，联系维护者核对接口契约 |
 | `api_not_found` | 核对 stage、网关前台路径、后端映射和服务路由/版本 |
+| `response_too_large` | 缩小查询范围或减少字段；仅发现事件来源时传 `--return_dimensions=false` |
+| `relation_route_unavailable` | 业务缺可用关联存储路由，联系平台管理员检查数据接入和路由 |
+| `retry_later` | 服务端没有成功返回；不能据此断言权限拒绝，保留请求 ID 排查 |
+| `permission_response_invalid` | 权限响应仍不一致或无法确定目标，保持停止状态，不绕过预检 |
 | `auth_failed` | 在对应数据来源更新登录状态；不通过换账号或换来源掩盖错误 |
 
 可用 `status` 检查当前状态，或先做离线检查：

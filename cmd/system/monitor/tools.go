@@ -19,6 +19,9 @@
 package monitor
 
 import (
+	"fmt"
+	"maps"
+
 	"github.com/spf13/cobra"
 
 	"github.com/TencentBlueKing/bk-cli/cmd/system/internal/monitorapi"
@@ -177,7 +180,7 @@ func check(rt *monitorapi.Runtime, biz, name string, values map[string]any) (map
 	if len(context) > 0 {
 		body["resource_context"] = context
 	}
-	decision, step, err := permissionDecision(rt, name, body, context)
+	decision, step, err := permissionDecision(rt, name, body, context, permission)
 	if err != nil {
 		return nil, err
 	}
@@ -199,7 +202,7 @@ func check(rt *monitorapi.Runtime, biz, name string, values map[string]any) (map
 func permissionDecision(
 	rt *monitorapi.Runtime,
 	name string,
-	body, context map[string]any,
+	body, context, permission map[string]any,
 ) (*monitorapi.Decision, map[string]any, error) {
 	reply, err := monitorapi.Call(rt, "lookup_permissions", body)
 	if err != nil {
@@ -223,9 +226,11 @@ func permissionDecision(
 			matches++
 		}
 	}
+	state = normalizeLegacyPermissionState(state, permission, body["bk_biz_id"])
 	authorized, hasAuthorization := data["authorized"].(bool)
 	granted := state["state"] == "granted" || state["state"] == "exempt"
-	if matches != 1 || !hasAuthorization || authorized != granted ||
+	if matches != 1 || len(monitorapi.List(data["scopes"])) != 1 || !hasAuthorization || authorized != granted ||
+		(authorized && len(monitorapi.List(data["missing_permissions"])) > 0) ||
 		(state["authorized"] != nil && state["authorized"] != authorized) {
 		return nil, nil, &monitorapi.Decision{
 			Code: "permission_response_invalid", Message: "权限响应没有唯一匹配当前工具，或授权结论互相矛盾；已停止。",
@@ -245,6 +250,32 @@ func permissionDecision(
 	}
 	decision.RequestID = reply.RequestID
 	return decision, step, nil
+}
+
+// Older space-scoped APIs return an explicit authorization boolean without a state.
+// Accept that contract only when the server schema, action and business all match.
+// This normalizes a server decision; it never derives permission from the catalog.
+func normalizeLegacyPermissionState(scope, permission map[string]any, biz any) map[string]any {
+	if _, exists := scope["state"]; exists {
+		return scope
+	}
+	action, hasAction := permission["action_id"].(string)
+	authorized, hasAuthorization := scope["authorized"].(bool)
+	_, hasMode := permission["mode"]
+	resource := monitorapi.Map(scope["resource"])
+	if hasMode || !hasAction || action == "" || !hasAuthorization ||
+		permission["resource_type"] != "space" || permission["resource_arg"] != "bk_biz_id" ||
+		scope["action_id"] != action || biz == nil || resource["bk_biz_id"] == nil ||
+		fmt.Sprint(resource["bk_biz_id"]) != fmt.Sprint(biz) {
+		return scope
+	}
+	state := maps.Clone(scope)
+	state["state"] = "missing"
+	if authorized {
+		state["state"] = "granted"
+	}
+	state["authorization_source"] = "legacy_mcp"
+	return state
 }
 
 func categoryFor(value string) string {

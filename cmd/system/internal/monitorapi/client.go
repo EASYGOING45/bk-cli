@@ -272,6 +272,14 @@ func Execute(rt *Runtime, tool string, args map[string]any) (*Reply, error) {
 		}
 		for _, row := range rows {
 			if fmt.Sprint(Map(row)["code"]) != strconv.Itoa(http.StatusOK) {
+				message, _ := Map(row)["message"].(string)
+				if strings.Contains(message, "binding lookup failed") &&
+					strings.Contains(message, "no usable SurrealDB result table route") {
+					return fail(
+						"relation_route_unavailable",
+						"目标业务没有可用的关联存储路由；请由平台管理员检查关联数据接入与路由配置。",
+					)
+				}
 				return fail("relation_query_failed", "关联查询存在失败子项；根据请求 ID 排查。")
 			}
 		}
@@ -336,6 +344,12 @@ type rule struct {
 
 // Upstream text is matched only to choose a stable code; it is never echoed.
 var rules = []rule{
+	{
+		[]string{"查询结果过大"},
+		"response_too_large",
+		"查询结果超过服务端响应限制；请缩小范围或减少返回字段。事件目录仅需发现来源时可设置 --return_dimensions=false。",
+		output.ExitCodeUserError,
+	},
 	{
 		[]string{"access_token expired", "access_token is invalid"},
 		"auth_failed",
@@ -420,7 +434,7 @@ func classify(status int, body map[string]any, rid string) *Decision {
 	case code == "503" || status == 503:
 		return &Decision{
 			Code:      "retry_later",
-			Message:   "服务端暂不可用；请求未授权。稍后重试。",
+			Message:   "服务端暂不可用；本次未取得成功结果，不能据此判断是否有权限。请保留请求 ID 排查。",
 			ExitCode:  output.ExitCodeSystemError,
 			RequestID: rid,
 		}

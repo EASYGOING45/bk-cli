@@ -82,7 +82,7 @@
         "query"
       ],
       "prerequisites": [
-        "list_time_series_groups"
+        "list_result_tables"
       ],
       "params": [
         {

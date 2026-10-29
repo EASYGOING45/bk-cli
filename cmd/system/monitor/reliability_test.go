@@ -218,6 +218,11 @@ var _ = Describe("monitor reliability boundaries", func() {
 		),
 		Entry("missing item", `{"data":[]}`, "partial_result"),
 		Entry("missing per-item success code", `{"data":[{}]}`, "relation_query_failed"),
+		Entry(
+			"missing relation storage route",
+			`{"data":[{"code":400,"message":"binding lookup failed for space=SECRET upstream: no usable SurrealDB result table route found"}]}`,
+			"relation_route_unavailable",
+		),
 	)
 
 	It("rejects trailing JSON instead of silently using only the first object", func() {

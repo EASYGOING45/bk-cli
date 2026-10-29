@@ -261,6 +261,10 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
             )
 
         if gateway == "bk-monitor" and tail == "mcp/lookup_tool_schema/":
+            if (request_body() or {}).get("tool_name") == "execute_sql_query":
+                return jsonify({"result": True, "data": {"catalog_version": "integration", "permission": {
+                    "action_id": "using_metrics_mcp", "resource_type": "space", "resource_arg": "bk_biz_id"
+                }}})
             return jsonify(
                 {
                     "result": True,
@@ -280,6 +284,11 @@ def create_app(test_config: dict[str, Any] | None = None) -> Flask:
         if gateway == "bk-monitor" and tail == "mcp/lookup_permissions/":
             payload = request_body() or {}
             tool_name = payload.get("tool_name")
+            if tool_name == "execute_sql_query" and payload.get("bk_biz_id") == "100100":
+                return jsonify({"result": True, "data": {"authorized": True, "missing_permissions": [], "scopes": [{
+                    "tool_name": tool_name, "authorized": True, "action_id": "using_metrics_mcp",
+                    "resource": {"bk_biz_id": "100100"}
+                }]}})
             # Two synthetic V2 evidence sources for MONITOR-009.
             if payload.get("bk_biz_id") in ("10007", "10008"):
                 return jsonify({"result": True, "data": {"authorized": True, "scopes": [{"tool_name": tool_name, "state": "granted"}]}})

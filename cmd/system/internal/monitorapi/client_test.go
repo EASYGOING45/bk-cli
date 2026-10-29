@@ -100,6 +100,12 @@ var _ = Describe("Monitor API decisions", func() {
 		),
 		Entry("IAM unavailable", 200, map[string]any{"code": 503, "message": "SECRET"}, "retry_later"),
 		Entry(
+			"bounded result",
+			400,
+			map[string]any{"data": map[string]any{"message": "查询结果过大 SECRET"}},
+			"response_too_large",
+		),
+		Entry(
 			"structured denial",
 			200,
 			map[string]any{"code": 403, "detail": map[string]any{"state": "missing"}},
